@@ -1,0 +1,1 @@
+Disclaimer: This is an unofficial fan-made open-source launcher. Sonic the Hedgehog and all related titles, names, and trademarks are property of SEGA. This repository contains no copyrighted game files, ROMs, music, or artwork — users provide their own legally owned games and custom media assets locally.
