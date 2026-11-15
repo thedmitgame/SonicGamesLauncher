@@ -40,7 +40,7 @@ Disclaimer: This is an unofficial fan-made open-source launcher. Sonic the Hedge
 
 #### Option 2: Run from Source
 ```bash
-git clone https://github.com
+git clone https://github.com/thedmitgame/SonicGamesLauncher
 cd sonic-custom-hub
 pip install -r requirements.txt
 python main.py
@@ -83,7 +83,7 @@ pyinstaller --noconfirm --clean --onefile --windowed --icon "icon.ico" --name "S
 
 #### Вариант 2: Запуск из исходного кода
 ```bash
-git clone https://github.com
+git clone https://github.com/thedmitgame/SonicGamesLauncher
 cd sonic-custom-hub
 pip install -r requirements.txt
 python main.py
