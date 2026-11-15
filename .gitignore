@@ -1,0 +1,22 @@
+# Сборка PyInstaller и кэш Python
+build/
+dist/
+__pycache__/
+*.spec
+optimize-mine.py
+prep_github.py
+
+# Личные настройки и кэш
+sonic_launcher_config.json
+rsdk_cache/
+screenshots/
+
+# Пользовательские медиафайлы (защита от авторских прав)
+images/*
+sounds/*
+fonts/*
+themes/*.sonicpack
+!images/.gitkeep
+!sounds/.gitkeep
+!fonts/.gitkeep
+!themes/.gitkeep

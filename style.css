@@ -1,0 +1,1217 @@
+:root {
+    --card-w: 210px;
+    --card-radius: 14px;
+    --logo-h: 75px;
+    --font-main: 'Segoe UI', Roboto, Arial, sans-serif;
+    --font-scale: 1;
+    --text-color: #ffffff;
+    --title-color: #FFD700;
+    --bg-opacity: 0.55;
+    --bg-blur: 4px;
+    --obj-opacity: 0.45;
+    --actual-card-w: min(var(--card-w), 31vh);
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    user-select: none;
+    font-family: var(--font-main);
+}
+
+body {
+    height: 100vh;
+    overflow: hidden;
+    color: var(--text-color);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 16px 30px;
+    background: #090d16;
+    position: relative;
+    transform: scale(1.06);
+    filter: brightness(1.5);
+    transition: transform 0.9s cubic-bezier(0.22, 1, 0.36, 1), filter 0.9s ease;
+}
+
+body.app-ready {
+    transform: scale(1);
+    filter: brightness(1);
+}
+
+body.app-exiting {
+    opacity: 0 !important;
+    transform: scale(0.82) !important;
+    filter: brightness(2.5) blur(14px) !important;
+    transition: opacity 0.55s ease, transform 0.55s ease, filter 0.55s ease !important;
+}
+
+#intro-curtain {
+    position: fixed;
+    inset: 0;
+    background: #090d16;
+    z-index: 998;
+    opacity: 1;
+    pointer-events: none;
+    transition: opacity 0.8s ease;
+}
+
+#intro-curtain.fade-out { opacity: 0; }
+
+#launch-flash {
+    position: fixed;
+    inset: 0;
+    background: radial-gradient(circle, #ffffff 0%, #ffd700 60%, transparent 100%);
+    opacity: 0;
+    pointer-events: none;
+    z-index: 999;
+    transition: opacity 0.35s ease;
+}
+
+#launch-flash.active { opacity: 0.95; }
+
+/* --- ФОНОВЫЕ СЛОИ И ШЕЙДЕРЫ --- */
+.bg-layer {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    opacity: 0;
+    transition: opacity 0.8s ease;
+    background-size: 300% 300%;
+    animation: gradientBG 12s ease infinite;
+    pointer-events: none;
+}
+
+.bg-layer.active { opacity: 1; }
+
+@keyframes gradientBG {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+#backdrop-image-layer {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    background-size: cover;
+    background-position: center;
+    opacity: 0;
+    filter: blur(var(--bg-blur)) brightness(0.6);
+    transition: opacity 0.7s ease, background-image 0.5s ease;
+    pointer-events: none;
+}
+
+#backdrop-image-layer.visible {
+    opacity: var(--bg-opacity);
+}
+#backdrop-video-layer {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    z-index: 0;
+    opacity: 0;
+    filter: blur(var(--bg-blur)) brightness(0.6);
+    transition: opacity 0.8s ease;
+    pointer-events: none;
+}
+
+#backdrop-video-layer.visible {
+    opacity: var(--bg-opacity);
+}
+
+#bg-shader-canvas {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1;
+    pointer-events: none;
+}
+
+/* --- ЛЕТАЮЩИЕ ОБЪЕКТЫ --- */
+#floating-objects {
+    position: fixed;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+    overflow: hidden;
+}
+
+.floater {
+    position: absolute;
+    opacity: 0;
+    filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.25));
+    animation-timing-function: linear;
+    animation-iteration-count: infinite;
+    will-change: transform, opacity;
+}
+
+@keyframes flyPath0 {
+    0%   { transform: translate(-12vw, 15vh) rotate(0deg) scale(0.8); opacity: 0; }
+    15%  { opacity: var(--obj-opacity); }
+    85%  { opacity: var(--obj-opacity); }
+    100% { transform: translate(112vw, -20vh) rotate(360deg) scale(1.1); opacity: 0; }
+}
+
+@keyframes flyPath1 {
+    0%   { transform: translate(112vw, 25vh) rotate(0deg) scale(1.05); opacity: 0; }
+    15%  { opacity: var(--obj-opacity); }
+    85%  { opacity: var(--obj-opacity); }
+    100% { transform: translate(-12vw, 75vh) rotate(-360deg) scale(0.85); opacity: 0; }
+}
+
+@keyframes flyPath2 {
+    0%   { transform: translate(15vw, 112vh) rotate(0deg) scale(0.9); opacity: 0; }
+    15%  { opacity: var(--obj-opacity); }
+    85%  { opacity: var(--obj-opacity); }
+    100% { transform: translate(75vw, -12vh) rotate(270deg) scale(1.15); opacity: 0; }
+}
+
+@keyframes flyPath3 {
+    0%   { transform: translate(80vw, -12vh) rotate(0deg) scale(1.1); opacity: 0; }
+    20%  { opacity: var(--obj-opacity); }
+    50%  { transform: translate(45vw, 45vh) rotate(-180deg) scale(0.7); opacity: calc(var(--obj-opacity) * 0.4); }
+    80%  { opacity: var(--obj-opacity); }
+    100% { transform: translate(20vw, 112vh) rotate(-360deg) scale(1); opacity: 0; }
+}
+/* --- ЗАГОЛОВОК И ЛОГО-СЦЕНА --- */
+header, #active-logo-stage, .carousel-wrapper, footer {
+    position: relative;
+    z-index: 2;
+}
+
+header {
+    text-align: center;
+    flex-shrink: 0;
+}
+
+#main-logo-img {
+    max-height: clamp(38px, 6.5vh, 60px);
+    max-width: 320px;
+    object-fit: contain;
+    margin: 0 auto;
+    filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.6));
+}
+
+h1 {
+    font-size: calc(clamp(20px, 3.2vh, 28px) * var(--font-scale));
+    font-weight: 900;
+    letter-spacing: 4px;
+    color: var(--title-color);
+    text-shadow: 0 4px 18px rgba(0, 0, 0, 0.7);
+}
+
+.subtitle {
+    font-size: calc(10px * var(--font-scale));
+    letter-spacing: 2px;
+    opacity: 0.7;
+    margin-top: 3px;
+}
+
+#active-logo-stage {
+    height: min(var(--logo-h), 11vh);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 6px;
+    flex-shrink: 0;
+    pointer-events: none;
+}
+
+#active-logo-img {
+    max-height: 100%;
+    max-width: 340px;
+    object-fit: contain;
+    opacity: 0;
+    transform: translateY(10px) scale(0.9);
+    filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.8));
+    transition: opacity 0.35s ease, transform 0.35s ease;
+}
+
+#active-logo-img.visible {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+}
+
+/* --- КАРУСЕЛЬ И СТРЕЛКИ --- */
+.carousel-wrapper {
+    flex-grow: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    min-height: 0;
+    position: relative;
+}
+
+.nav-arrow {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.12);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    color: var(--text-color);
+    font-size: 18px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.25s ease, transform 0.25s ease;
+    z-index: 10;
+}
+
+#nav-prev { left: 15px; }
+#nav-next { right: 15px; }
+
+.nav-arrow:hover {
+    background: rgba(255, 255, 255, 0.28);
+    transform: translateY(-50%) scale(1.1);
+}
+
+.nav-arrow.hidden {
+    opacity: 0;
+    pointer-events: none;
+}
+
+#games-container {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* --- КАРТОЧКИ ИГР --- */
+.game-card {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: var(--actual-card-w);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    cursor: pointer;
+    transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.45s ease, width 0.2s ease;
+}
+
+.cover-box {
+    width: var(--actual-card-w);
+    border-radius: var(--card-radius);
+    overflow: hidden;
+    position: relative;
+    background: rgba(10, 14, 24, 0.65);
+    backdrop-filter: blur(12px);
+    border: 2px solid rgba(255, 255, 255, 0.18);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: border-color 0.35s ease, box-shadow 0.35s ease, border-radius 0.2s ease;
+}
+
+.game-card.selected .cover-box {
+    border-color: var(--accent-color);
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.75), 0 0 26px var(--accent-color);
+}
+
+/* Стили тем: Неон и Ретро-пиксель */
+body.style-neon .game-card.selected .cover-box {
+    border-width: 3px;
+    box-shadow: 0 0 15px var(--accent-color), 0 0 38px var(--accent-color), inset 0 0 15px var(--accent-color);
+}
+
+body.style-neon .settings-btn {
+    border: 2px solid var(--title-color);
+    box-shadow: 0 0 12px rgba(255, 215, 0, 0.35);
+}
+
+body.style-retro .cover-box {
+    border-radius: 0px !important;
+    border: 4px solid #ffffff;
+    box-shadow: 6px 6px 0px #000000;
+}
+
+body.style-retro .game-card.selected .cover-box {
+    border-color: var(--title-color);
+    box-shadow: 8px 8px 0px #000000;
+}
+
+body.style-retro .settings-btn,
+body.style-retro .corner-btn,
+body.style-retro .nav-arrow {
+    border-radius: 0px !important;
+    border: 2px solid #ffffff;
+    box-shadow: 4px 4px 0px #000000;
+}
+
+.cover-box img {
+    width: 100%;
+    height: auto;
+    display: block;
+}
+
+.cover-placeholder {
+    width: 100%;
+    height: calc(var(--actual-card-w) * 1.43);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 12px;
+    text-align: center;
+    font-weight: 800;
+    font-size: calc(14px * var(--font-scale));
+    opacity: 0.6;
+    text-transform: uppercase;
+}
+
+.play-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.35);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.25s ease;
+}
+
+.game-card.selected:hover .play-overlay { opacity: 1; }
+
+.play-circle {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: var(--accent-color);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+}
+
+.game-title {
+    margin-top: 9px;
+    font-size: calc(clamp(13px, 1.9vh, 16px) * var(--font-scale));
+    font-weight: 700;
+    text-align: center;
+    white-space: nowrap;
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.85);
+}
+
+.game-tag {
+    font-size: calc(10px * var(--font-scale));
+    opacity: 0.7;
+    letter-spacing: 1px;
+    margin-top: 2px;
+}
+
+.playtime-badge {
+    margin-top: 4px;
+    padding: 2px 8px;
+    border-radius: 10px;
+    background: rgba(0, 0, 0, 0.45);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    font-size: calc(10px * var(--font-scale));
+    color: var(--title-color);
+}
+
+.playtime-badge.running {
+    background: rgba(34, 197, 94, 0.25);
+    border-color: #4ADE80;
+    color: #4ADE80;
+}
+.empty-state {
+    text-align: center;
+    opacity: 0.85;
+    font-size: 14px;
+    line-height: 1.6;
+    background: rgba(0, 0, 0, 0.35);
+    backdrop-filter: blur(10px);
+    padding: 30px 40px;
+    border-radius: 18px;
+    border: 1px dashed rgba(255, 255, 255, 0.25);
+}
+
+/* --- НИЖНИЕ КНОПКИ И ТРЕЙ --- */
+footer {
+    text-align: center;
+    flex-shrink: 0;
+}
+
+.footer-controls {
+    display: inline-flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px;
+    align-items: center;
+}
+
+.settings-btn {
+    background: rgba(255, 255, 255, 0.12);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: var(--text-color);
+    padding: 9px 18px;
+    border-radius: 30px;
+    font-size: calc(12px * var(--font-scale));
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.2s;
+}
+
+.settings-btn:hover {
+    background: rgba(255, 255, 255, 0.22);
+    transform: scale(1.03);
+}
+
+.settings-btn.hidden { display: none; }
+
+.mods-btn {
+    border-color: rgba(255, 215, 0, 0.45);
+    color: var(--title-color);
+}
+
+.corner-btn {
+    position: fixed;
+    bottom: 18px;
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.12);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: var(--text-color);
+    font-size: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 10;
+    transition: transform 0.25s ease, background 0.25s ease;
+}
+
+.left-corner { left: 20px; }
+.tray-corner { right: 66px; }
+.right-corner { right: 20px; }
+
+.left-corner:hover {
+    background: rgba(255, 255, 255, 0.25);
+    transform: rotate(30deg) scale(1.1);
+}
+
+.tray-corner:hover {
+    background: rgba(30, 144, 255, 0.55);
+    transform: scale(1.1);
+}
+
+.right-corner:hover {
+    background: rgba(220, 38, 38, 0.7);
+    transform: scale(1.1);
+}
+
+/* --- МОДАЛЬНЫЕ ОКНА --- */
+.modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(5, 8, 15, 0.85);
+    backdrop-filter: blur(15px);
+    display: none;
+    justify-content: center;
+    align-items: center;
+    padding: 25px;
+    z-index: 100;
+}
+
+.modal-backdrop.active { display: flex; }
+
+.modal-box {
+    background: rgba(25, 32, 48, 0.96);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 18px;
+    padding: 22px;
+    width: 100%;
+    max-width: 500px;
+    max-height: 88vh;
+    overflow-y: auto;
+    color: white;
+}
+
+.wide-box { max-width: 620px; }
+.custom-box { max-width: 470px; }
+
+.modal-title {
+    font-size: 18px;
+    font-weight: 700;
+    margin-bottom: 14px;
+    text-align: center;
+    color: #FFD700;
+}
+
+.smm-bar, .mods-toolbar, .presets-bar, .theme-io-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: rgba(0, 0, 0, 0.32);
+    padding: 8px 12px;
+    border-radius: 10px;
+    margin-bottom: 12px;
+    gap: 8px;
+    font-size: 12px;
+}
+
+.theme-io-bar { justify-content: center; }
+
+.setting-row-block {
+    padding: 10px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.setting-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+}
+
+.setting-name { font-size: 14px; font-weight: 600; width: 145px; flex-shrink: 0; }
+
+.setting-file {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.45);
+    flex-grow: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.setting-file.selected { color: #4ADE80; }
+
+.args-input {
+    width: 100%;
+    background: rgba(255, 255, 255, 0.07);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 6px;
+    padding: 5px 10px;
+    color: white;
+    font-size: 12px;
+    outline: none;
+}
+
+.btn-small {
+    background: rgba(255, 255, 255, 0.15);
+    border: none;
+    color: white;
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.btn-small:hover { background: rgba(255, 255, 255, 0.3); }
+.btn-accent { background: rgba(30, 144, 255, 0.65); }
+.btn-accent:hover { background: rgba(30, 144, 255, 0.95); }
+.btn-clear { background: rgba(220, 38, 38, 0.5); }
+.btn-clear:hover { background: rgba(220, 38, 38, 0.9); }
+
+/* --- СПИСОК МОДОВ, ТВИКОВ И ГАЛЕРЕЯ СКРИНШОТОВ --- */
+.mods-path-text {
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.6);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex-grow: 1;
+}
+
+.mods-list, .tweaks-container {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.mod-item, .tweak-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: rgba(255, 255, 255, 0.06);
+    padding: 10px 14px;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    gap: 10px;
+}
+
+.mod-info { display: flex; flex-direction: column; overflow: hidden; }
+.mod-title { font-size: 14px; font-weight: 700; color: white; }
+.mod-author { font-size: 11px; color: rgba(255, 255, 255, 0.5); }
+.mod-toggle { width: 18px; height: 18px; accent-color: #4ADE80; cursor: pointer; flex-shrink: 0; }
+
+.shots-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 10px;
+    max-height: 340px;
+    overflow-y: auto;
+}
+
+.shot-thumb {
+    width: 100%;
+    aspect-ratio: 16/9;
+    object-fit: cover;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+.shot-thumb:hover { transform: scale(1.04); border-color: #FFD700; }
+
+#shot-lightbox { z-index: 200; cursor: zoom-out; }
+#shot-lightbox-img { max-width: 92vw; max-height: 92vh; border-radius: 12px; box-shadow: 0 10px 40px black; }
+
+/* --- ЭЛЕМЕНТЫ РЕДАКТОРА ТЕМ --- */
+.custom-group {
+    margin-bottom: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    font-size: 12px;
+}
+
+.dual-range { display: flex; gap: 10px; }
+.dual-range input[type="range"], .custom-group > input[type="range"] {
+    width: 100%;
+    accent-color: #FFD700;
+    cursor: pointer;
+}
+
+.custom-select {
+    background: rgba(255, 255, 255, 0.12);
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    padding: 7px 10px;
+    border-radius: 8px;
+    font-size: 12px;
+    outline: none;
+    cursor: pointer;
+}
+
+.custom-select option { background: #192030; color: white; }
+
+.font-picker-row { display: flex; align-items: center; gap: 6px; }
+.font-name-badge {
+    flex-grow: 1;
+    background: rgba(255, 255, 255, 0.08);
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    color: #FFD700;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.custom-check-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    margin: 8px 0;
+}
+
+.custom-check-row input { width: 16px; height: 16px; accent-color: #1E90FF; }
+
+.custom-subtitle {
+    font-size: 13px;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.7);
+    margin: 12px 0 6px;
+}
+
+.color-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+    font-size: 13px;
+}
+
+.color-inputs { display: flex; gap: 8px; }
+.color-inputs input[type="color"] {
+    width: 34px;
+    height: 26px;
+    border: none;
+    border-radius: 6px;
+    background: none;
+    cursor: pointer;
+}
+
+.modal-actions { display: flex; gap: 10px; margin-top: 16px; }
+.btn-reset {
+    padding: 12px 16px;
+    background: rgba(255, 255, 255, 0.12);
+    border: none;
+    border-radius: 10px;
+    color: white;
+    font-weight: 600;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.btn-reset:hover { background: rgba(255, 255, 255, 0.22); }
+.close-modal-btn {
+    width: 100%;
+    margin-top: 16px;
+    padding: 12px;
+    background: #1E90FF;
+    border: none;
+    border-radius: 10px;
+    color: white;
+    font-weight: 700;
+    font-size: 14px;
+    cursor: pointer;
+}
+/* --- ВИДЕОФОН И БОКОВЫЕ ПЕРСОНАЖИ --- */
+#backdrop-video-layer {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    z-index: 0;
+    opacity: 0;
+    filter: blur(var(--bg-blur)) brightness(0.6);
+    transition: opacity 0.8s ease;
+    pointer-events: none;
+}
+
+#backdrop-video-layer.visible {
+    opacity: var(--bg-opacity);
+}
+
+#character-stage {
+    position: fixed;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+    overflow: hidden;
+}
+
+.char-art {
+    position: absolute;
+    bottom: 0;
+    max-width: 45vw;
+    object-fit: contain;
+    opacity: 0;
+    filter: drop-shadow(0 12px 28px rgba(0, 0, 0, 0.75));
+    transition: opacity 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+                transform 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+                height 0.2s ease,
+                left 0.15s ease,
+                right 0.15s ease,
+                bottom 0.15s ease;
+}
+
+.char-art.visible {
+    opacity: 1;
+}
+
+/* --- ВКЛАДКИ В РЕДАКТОРЕ ТЕМ --- */
+.tabs-bar {
+    display: flex;
+    gap: 6px;
+    background: rgba(0, 0, 0, 0.35);
+    padding: 6px;
+    border-radius: 12px;
+    margin-bottom: 14px;
+    flex-wrap: wrap;
+}
+
+.tab-btn {
+    flex: 1;
+    min-width: 110px;
+    padding: 8px 10px;
+    background: transparent;
+    border: none;
+    border-radius: 8px;
+    color: rgba(255, 255, 255, 0.65);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s;
+}
+
+.tab-btn:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: white;
+}
+
+.tab-btn.active {
+    background: #1E90FF;
+    color: white;
+}
+
+.tab-pane {
+    display: none;
+    max-height: 52vh;
+    overflow-y: auto;
+    padding-right: 4px;
+}
+
+.tab-pane.active {
+    display: block;
+}
+
+/* --- НАСТРОЙКИ ПЕРСОНАЖЕЙ И ЗВУКОВ --- */
+.char-card-cfg {
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    padding: 12px;
+    margin-bottom: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.char-cfg-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.char-cfg-controls {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    font-size: 11px;
+}
+
+.sound-cfg-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 7px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    font-size: 12px;
+    gap: 6px;
+}
+
+.sound-cfg-name {
+    width: 155px;
+    flex-shrink: 0;
+    font-weight: 600;
+}
+
+.sound-cfg-status {
+    flex-grow: 1;
+    color: rgba(255, 255, 255, 0.45);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.sound-cfg-status.loaded {
+    color: #4ADE80;
+}
+
+
+/* --- НОВЫЕ СТИЛИ ИНТЕРФЕЙСА (SEGA DYNAMIC, CONSOLE HUD, ПОЗИЦИЯ ЗАГОЛОВКА) --- */
+:root {
+    --panel-alpha: 0.45;
+}
+
+header.pos-left {
+    text-align: left;
+    padding-left: 10px;
+}
+header.pos-left #main-logo-img { margin: 0; }
+header.pos-hidden { display: none; }
+
+/* Стиль 1: SEGA Dynamic (Скошенные углы, без шаблонного мыла) */
+body.style-sega .settings-btn {
+    border-radius: 4px !important;
+    transform: skewX(-14deg);
+    background: rgba(10, 14, 24, var(--panel-alpha));
+    border: 2px solid rgba(255, 255, 255, 0.35);
+    border-left: 5px solid var(--title-color);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+body.style-sega .settings-btn:hover {
+    transform: skewX(-14deg) scale(1.05);
+    background: var(--title-color);
+    color: #090d16;
+}
+body.style-sega .cover-box {
+    border-radius: 6px !important;
+    border: 3px solid rgba(255, 255, 255, 0.25);
+}
+body.style-sega .nav-arrow {
+    border-radius: 6px !important;
+    transform: translateY(-50%) skewX(-12deg);
+    background: rgba(10, 14, 24, var(--panel-alpha));
+}
+body.style-sega .corner-btn {
+    border-radius: 6px !important;
+    transform: skewX(-12deg);
+    background: rgba(10, 14, 24, var(--panel-alpha));
+}
+
+/* Стиль 2: Console HUD (Строгий консольный минимализм) */
+body.style-console .settings-btn {
+    border-radius: 8px !important;
+    background: rgba(12, 16, 26, var(--panel-alpha));
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    backdrop-filter: none;
+}
+body.style-console .cover-box {
+    border-radius: 10px !important;
+    border: 2px solid transparent;
+    backdrop-filter: none;
+    background: #0d111a;
+}
+body.style-console .game-card.selected .cover-box {
+    border-color: #ffffff;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.9);
+}
+body.style-console .corner-btn,
+body.style-console .nav-arrow {
+    border-radius: 8px !important;
+    background: rgba(12, 16, 26, var(--panel-alpha));
+    backdrop-filter: none;
+}
+
+
+/* --- АУДИО-ЭКВАЛАЙЗЕР И РЕЖИМ ПРОИЗВОДИТЕЛЬНОСТИ (LITE MODE) --- */
+#audio-eq-canvas {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 75px;
+    z-index: 1;
+    pointer-events: none;
+    opacity: 0.75;
+}
+
+body.lite-mode * {
+    backdrop-filter: none !important;
+    transition-duration: 0.15s !important;
+}
+
+body.lite-mode .bg-layer {
+    animation: none !important;
+}
+
+body.lite-mode #backdrop-image-layer,
+body.lite-mode #backdrop-video-layer {
+    filter: brightness(0.55) !important;
+}
+
+body.lite-mode .cover-box {
+    background: rgba(12, 16, 26, 0.92) !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6) !important;
+}
+
+
+
+/* --- УЛУЧШЕННЫЙ ВИЗУАЛЬНЫЙ РЕДАКТОР HUD --- */
+#hud-editor-bar {
+    position: fixed;
+    top: 14px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(12, 16, 26, 0.96);
+    border: 2px solid #8b5cf6;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.85);
+    padding: 8px 16px;
+    border-radius: 10px;
+    display: none;
+    align-items: center;
+    gap: 12px;
+    z-index: 950;
+    font-size: 12px;
+    color: white;
+    white-space: nowrap;
+}
+
+body.hud-editing #hud-editor-bar {
+    display: flex;
+}
+
+body.hud-editing::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    background-image: linear-gradient(rgba(255,255,255,0.07) 1px, transparent 1px),
+                      linear-gradient(90deg, rgba(255,255,255,0.07) 1px, transparent 1px);
+    background-size: 25px 25px;
+    z-index: 1;
+    pointer-events: none;
+}
+
+body.hud-editing [data-hud-id] {
+    outline: 2px dashed #a78bfa !important;
+    outline-offset: 4px;
+    cursor: grab !important;
+    pointer-events: auto !important;
+    user-select: none !important;
+}
+
+body.hud-editing [data-hud-id]:hover {
+    outline-color: #FFD700 !important;
+    background-color: rgba(139, 92, 246, 0.15) !important;
+}
+
+body.hud-editing [data-hud-id]:active {
+    cursor: grabbing !important;
+}
+
+body.hud-editing [data-hud-id] * {
+    pointer-events: none !important;
+}
+
+
+
+/* --- ВЕКТОРНЫЕ И КАСТОМНЫЕ ИКОНКИ КНОПОК --- */
+.btn-inner-wrap {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    pointer-events: none;
+}
+
+.btn-svg-icon {
+    width: 15px;
+    height: 15px;
+    flex-shrink: 0;
+    stroke: currentColor;
+    fill: none;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.btn-custom-img {
+    width: 16px;
+    height: 16px;
+    object-fit: contain;
+    flex-shrink: 0;
+}
+
+.corner-btn .btn-svg-icon {
+    width: 17px;
+    height: 17px;
+}
+
+.corner-btn .btn-custom-img {
+    width: 20px;
+    height: 20px;
+}
+
+
+
+
+/* --- ЧИСТЫЕ МАКЕТЫ ИНТЕРФЕЙСА (ИСПРАВЛЕННЫЕ) --- */
+:root {
+    --carousel-y: 0px;
+    --btn-scale: 1;
+}
+
+header {
+    width: 100%;
+    text-align: center;
+    position: relative;
+    z-index: 10;
+}
+
+header.pos-left {
+    text-align: left;
+    padding-left: 36px;
+}
+header.pos-left #main-logo-img { margin: 0; }
+header.pos-hidden { display: none !important; }
+
+#games-container {
+    transform: translateY(var(--carousel-y));
+}
+
+.settings-btn {
+    transform: scale(var(--btn-scale));
+}
+body.style-sega .settings-btn {
+    transform: skewX(-14deg) scale(var(--btn-scale));
+}
+
+/* Макет 2: Консольный (Меню кнопок столбиком слева, игры правее) */
+body.layout-console_left header {
+    text-align: left;
+    padding-left: 36px;
+}
+body.layout-console_left #main-logo-img { margin: 0; }
+body.layout-console_left footer {
+    position: fixed;
+    left: 36px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: auto;
+    z-index: 15;
+}
+body.layout-console_left .footer-controls {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+}
+body.layout-console_left .carousel-wrapper {
+    padding-left: 210px;
+}
+body.layout-console_left #nav-prev {
+    left: 225px;
+}
+
+/* Макет 3: Аркадный (Игры опущены ниже, сверху много места для видео) */
+body.layout-arcade_bottom #active-logo-stage {
+    height: 15vh;
+    margin-top: 10px;
+}
+body.layout-arcade_bottom .carousel-wrapper {
+    align-items: flex-end;
+    padding-bottom: 18px;
+}
+
+/* Макет 4: Верхняя панель (Кнопки аккуратно сверху по центру, заголовок под ними) */
+body.layout-top_bar header {
+    margin-top: 64px !important;
+}
+body.layout-top_bar footer {
+    position: fixed;
+    top: 16px;
+    left: 0;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    z-index: 20;
+}
+
+footer, .footer-controls, #progress-btn { position: relative; z-index: 25 !important; pointer-events: auto !important; }
