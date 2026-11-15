@@ -1,11 +1,5 @@
 Disclaimer: This is an unofficial fan-made open-source launcher. Sonic the Hedgehog and all related titles, names, and trademarks are property of SEGA. This repository contains no copyrighted game files, ROMs, music, or artwork — users provide their own legally owned games and custom media assets locally.
 # Sonic Games Launcher(SGL) & Theme Studio
-
-![100% Vibecoded](https://shields.io⚡_100%25_Vibecoded-AI_Assisted_Development-FFD700?style=for-the-badge)
-![Platform](https://shields.ioPlatform-Windows-0078D6?style=for-the-badge)
-![Python](https://shields.ioPython-3.10+-3776AB?style=for-the-badge)
-![License](https://shields.ioLicense-MIT-22c55e?style=for-the-badge)
-
 > **100% Vibecoded Project:**  
 > **EN:** This entire launcher, save-file parser, and standalone Theme Studio were built from scratch through **vibecoding** — iterative human-directed architecture, UI/UX design, binary save reverse-engineering, and debugging powered by AI.  
 > **RU:** Весь этот лаунчер, бинарный парсер сохранений и автономная студия тем от начала до конца созданы в формате **вайбкодинга** — живой итеративной разработки архитектуры, дизайна, реверс-инжиниринга сейвов и отладки в тандеме человека и ИИ.
