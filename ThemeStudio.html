@@ -15,7 +15,7 @@
         display: flex; align-items: center; justify-content: space-between; padding: 0 18px;
     }
     .brand { font-weight: 900; font-size: 15px; color: #FFD700; letter-spacing: 0.8px; }
-    .top-actions { display: flex; gap: 8px; }
+    .top-actions { display: flex; gap: 8px; align-items: center; } .top-actions .btn { white-space: nowrap; }
     .btn {
         background: #2563eb; color: #fff; border: none; padding: 7px 13px; border-radius: 8px;
         font-size: 12px; font-weight: 700; cursor: pointer; transition: 0.15s;
@@ -94,9 +94,9 @@
 <header>
     <div class="brand">SONIC LAUNCHER — THEME STUDIO v2.0</div>
     <div class="top-actions">
-        <select id="studio-lang" onchange="setStudioLang(this.value)" style="background:#1a2236;color:#fff;border:1px solid rgba(255,255,255,0.2);border-radius:8px;padding:6px 10px;font-size:12px;font-weight:700;">
-            <option value="ru">🌐 Русский</option>
-            <option value="en">🌐 English</option>
+        <select id="studio-lang" onchange="setStudioLang(this.value)" style="width:auto;min-width:130px;background:#1a2236;color:#fff;border:1px solid rgba(255,255,255,0.2);border-radius:8px;padding:6px 10px;font-size:12px;font-weight:700;">
+            <option value="ru">RU • Русский</option>
+            <option value="en">EN • English</option>
         </select>
         <input type="file" id="file-import" accept=".json,.sonicpack" style="display:none">
         <button class="btn sec" onclick="document.getElementById('file-import').click()">Импорт .JSON / .SONICPACK</button>
@@ -124,6 +124,21 @@
                     <option value="glass">Glassmorphism</option>
                 </select>
             </label>
+                        <label>Фоновый эффект / шейдер:
+                <select id="g-shaderType" onchange="updateGlobal('shaderType', this.value)">
+                    <option value="none">Без эффекта (только градиент)</option>
+                    <option value="synthwave">Ретро-сетка (Synthwave)</option>
+                    <option value="speedlines">Скоростные линии (Speed Lines)</option>
+                    <option value="checker">Шахматка Green Hill</option>
+                    <option value="sparks">Парящие искры Изумрудов</option>
+                </select>
+            </label>
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px;">
+                <button type="button" class="btn sec" style="padding:5px;" onclick="applyStudioPreset('sega')">SEGA</button>
+                <button type="button" class="btn sec" style="padding:5px;" onclick="applyStudioPreset('mania')">Mania</button>
+                <button type="button" class="btn sec" style="padding:5px;" onclick="applyStudioPreset('neon')">Neon</button>
+                <button type="button" class="btn sec" style="padding:5px;" onclick="applyStudioPreset('console')">Console</button>
+            </div>
             <label>Режим карусели:
                 <select id="g-carouselMode" onchange="updateGlobal('carouselMode', this.value)">
                     <option value="coverflow">3D-Круг (Объёмное кольцо)</option>
@@ -160,6 +175,7 @@
 </aside>
 
 <main id="canvas-wrap">
+    <canvas id="studio-shader-canvas" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;"></canvas>
     <div id="stage">
         <div class="hud-el" id="hud-header" data-hud="header">
             <h1 id="title-preview">SONIC LAUNCHER</h1>
@@ -168,19 +184,20 @@
         <div class="hud-el" id="hud-gamelogo" data-hud="gamelogo">SONIC THE HEDGEHOG</div>
         <div class="hud-el" id="hud-carousel" data-hud="carousel"></div>
 
-        <div class="hud-el pill-hud" id="hud-settings" data-hud="settings" style="left:22%;top:92%;">⚙ Игры и пути</div>
-        <div class="hud-el pill-hud" id="hud-mods" data-hud="mods" style="left:36%;top:92%;">📦 Моды</div>
-        <div class="hud-el pill-hud" id="hud-tweaks" data-hud="tweaks" style="left:49%;top:92%;">🎛 Настройки игры</div>
-        <div class="hud-el pill-hud" id="hud-shots" data-hud="shots" style="left:63%;top:92%;">📷 Скриншоты</div>
-        <div class="hud-el pill-hud" id="hud-progress" data-hud="progress" style="left:76%;top:92%;">💎 Прогресс</div>
+        <div class="hud-el pill-hud" id="hud-btn-settings" data-hud="btn-settings" style="left:22%;top:92%;">Игры и пути</div>
+        <div class="hud-el pill-hud" id="hud-btn-mods" data-hud="btn-mods" style="left:36%;top:92%;">Моды</div>
+        <div class="hud-el pill-hud" id="hud-btn-tweaks" data-hud="btn-tweaks" style="left:49%;top:92%;">Настройки игры</div>
+        <div class="hud-el pill-hud" id="hud-btn-shots" data-hud="btn-shots" style="left:63%;top:92%;">Скриншоты</div>
+        <div class="hud-el pill-hud" id="hud-btn-progress" data-hud="btn-progress" style="left:76%;top:92%;">Прогресс</div>
 
-        <div class="hud-el pill-hud" id="hud-custom" data-hud="custom" style="left:5%;top:92%;">🎨</div>
-        <div class="hud-el pill-hud" id="hud-tray" data-hud="tray" style="left:90%;top:92%;">—</div>
-        <div class="hud-el pill-hud" id="hud-exit" data-hud="exit" style="left:95%;top:92%;">✖</div>
+        <div class="hud-el pill-hud" id="hud-btn-custom" data-hud="btn-custom" style="left:4%;top:92%;">Тема</div>
+        <div class="hud-el pill-hud" id="hud-btn-help" data-hud="btn-help" style="left:9%;top:92%;">?</div>
+        <div class="hud-el pill-hud" id="hud-btn-tray" data-hud="btn-tray" style="left:90%;top:92%;">—</div>
+        <div class="hud-el pill-hud" id="hud-btn-exit" data-hud="btn-exit" style="left:95%;top:92%;">×</div>
 
-        <div class="hud-el pill-hud" id="hud-m5bar" data-hud="m5bar" style="left:66%;top:5%;">🎲 Рулетка • 📁 Игра • 💾 Сейвы</div>
-        <div class="hud-el pill-hud" id="hud-lang" data-hud="lang" style="left:7%;top:5%;">🌐 Русский ▾</div>
-        <div class="hud-el pill-hud" id="hud-m4btn" data-hud="m4btn" style="left:89%;top:5%;">🎬 Атмосфера</div>
+        <div class="hud-el pill-hud" id="hud-m5bar" data-hud="m5bar" style="left:66%;top:5%;">Рулетка • Игра • Сейвы</div>
+        <div class="hud-el pill-hud" id="hud-lang" data-hud="lang" style="left:7%;top:5%;">RU • Русский ▾</div>
+        <div class="hud-el pill-hud" id="hud-m4btn" data-hud="m4btn" style="left:89%;top:5%;">Атмосфера</div>
     </div>
 </main>
 
@@ -218,14 +235,15 @@ const HUD_META = {
     header: "Заголовок лаунчера",
     gamelogo: "Логотип активной игры",
     carousel: "3D-Карусель игр",
-    settings: "Кнопка «Игры и пути»",
-    mods: "Кнопка «Моды»",
-    tweaks: "Кнопка «Настройки игры»",
-    shots: "Кнопка «Скриншоты»",
-    progress: "Кнопка «Прогресс»",
-    custom: "Кнопка «Настройки темы»",
-    tray: "Кнопка «В трей»",
-    exit: "Кнопка «Выход»",
+    "btn-settings": "Кнопка «Игры и пути»",
+    "btn-mods": "Кнопка «Моды»",
+    "btn-tweaks": "Кнопка «Настройки игры»",
+    "btn-shots": "Кнопка «Скриншоты»",
+    "btn-progress": "Кнопка «Прогресс»",
+    "btn-custom": "Кнопка «Настройки темы»",
+    "btn-help": "Кнопка «Обучение (?)»",
+    "btn-tray": "Кнопка «В трей»",
+    "btn-exit": "Кнопка «Выход»",
     m5bar: "Верхняя панель (Рулетка / Папки)",
     m4btn: "Кнопка «Атмосфера и Заставка»",
     lang: "Переключатель языка (RU / EN)"
@@ -315,6 +333,8 @@ function renderDemoCarousel() {
         { name: "Sonic 1 Forever", tag: "1991" },
         { name: "Sonic 2 Absolute", tag: "1992" },
         { name: "Sonic CD Restored", tag: "1993" },
+        { name: "Sonic Mania", tag: "2017 • PLUS" },
+        { name: "Sonic Robo Blast 2", tag: "3D FAN GAME" },
         { name: "Sonic Origins", tag: "COLLECTION" }
     ];
     box.innerHTML = '';
@@ -388,7 +408,9 @@ function selectHudElement(id) {
 function syncInspector() {
     if (!selectedHud) return;
     const pos = design.customLayout[selectedHud];
-    document.getElementById('insp-name').innerText = HUD_META[selectedHud] || selectedHud;
+    const rawTitle = HUD_META[selectedHud] || selectedHud;
+    const curLang = document.getElementById('studio-lang')?.value || 'ru';
+    document.getElementById('insp-name').innerText = (curLang === 'en' && STUDIO_EN[rawTitle]) ? STUDIO_EN[rawTitle] : rawTitle;
     document.getElementById('insp-x').value = pos.x;
     document.getElementById('insp-y').value = pos.y;
     document.getElementById('insp-scale').value = pos.scale || 1;
@@ -452,8 +474,69 @@ function updateGrad() {
     renderCanvas();
 }
 
+function applyStudioPreset(kind) {
+    const map = {
+        sega:    { cardStyle: 'sega', shaderType: 'speedlines', carouselMode: 'coverflow', titleColor: '#FFD700', gradients: { default: ['#041436', '#0066ff'] } },
+        mania:   { cardStyle: 'retro', shaderType: 'checker', carouselMode: 'arc', titleColor: '#FDE047', gradients: { default: ['#2e1005', '#f59e0b'] } },
+        neon:    { cardStyle: 'neon', shaderType: 'synthwave', carouselMode: 'coverflow', titleColor: '#F472B6', gradients: { default: ['#16072e', '#db2777'] } },
+        console: { cardStyle: 'console', shaderType: 'sparks', carouselMode: 'row', titleColor: '#38BDF8', gradients: { default: ['#081b2e', '#0284c7'] } }
+    };
+    if (map[kind]) applyImportedDesign(map[kind]);
+}
+
+function startStudioShaderLoop() {
+    const c = document.getElementById('studio-shader-canvas');
+    if (!c) return;
+    const ctx = c.getContext('2d');
+    const sparks = Array.from({ length: 30 }, () => ({ x: Math.random() * 900, y: Math.random() * 650, r: 2 + Math.random() * 2.5, vy: 0.6 + Math.random() }));
+    let tick = 0;
+    function frame() {
+        const w = c.clientWidth || 800, h = c.clientHeight || 600;
+        if (c.width !== w || c.height !== h) { c.width = w; c.height = h; }
+        ctx.clearRect(0, 0, w, h);
+        const mode = design.shaderType || 'none';
+        tick++;
+        if (mode === 'synthwave') {
+            ctx.strokeStyle = 'rgba(255,255,255,0.16)';
+            const hor = h * 0.56;
+            for (let i = -14; i <= 14; i++) {
+                ctx.beginPath(); ctx.moveTo(w * 0.5 + i * 24, hor); ctx.lineTo(w * 0.5 + i * 110, h); ctx.stroke();
+            }
+            const off = (tick * 1.3) % 24;
+            for (let y = hor; y < h; y += 24) {
+                const dy = y + off * ((y - hor) / (h - hor));
+                if (dy <= h) { ctx.beginPath(); ctx.moveTo(0, dy); ctx.lineTo(w, dy); ctx.stroke(); }
+            }
+        } else if (mode === 'speedlines') {
+            ctx.strokeStyle = 'rgba(255,255,255,0.18)'; ctx.lineWidth = 2;
+            for (let i = 0; i < 18; i++) {
+                const lx = w - ((tick * (12 + (i % 5) * 3) + i * 97) % (w + 200));
+                const ly = ((i * 53) % Math.max(100, h));
+                ctx.beginPath(); ctx.moveTo(lx, ly); ctx.lineTo(lx + 110, ly); ctx.stroke();
+            }
+        } else if (mode === 'checker') {
+            const sz = 42, sh = (tick * 0.5) % (sz * 2);
+            ctx.fillStyle = 'rgba(255,255,255,0.05)';
+            for (let x = -sz * 2; x < w + sz * 2; x += sz) {
+                for (let y = -sz * 2; y < h + sz * 2; y += sz) {
+                    if ((Math.floor(x / sz) + Math.floor(y / sz)) % 2 === 0) ctx.fillRect(x + sh, y + sh * 0.5, sz, sz);
+                }
+            }
+        } else if (mode === 'sparks') {
+            sparks.forEach(s => {
+                s.y -= s.vy; if (s.y < -10) { s.y = h + 10; s.x = Math.random() * w; }
+                ctx.fillStyle = 'rgba(255,215,0,0.55)'; ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2); ctx.fill();
+            });
+        }
+        requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
+}
+window.addEventListener('DOMContentLoaded', startStudioShaderLoop);
+
 function applyImportedDesign(obj) {
     design = { ...design, ...obj };
+    if (document.getElementById('g-shaderType')) document.getElementById('g-shaderType').value = design.shaderType || 'none';
     document.getElementById('g-cardStyle').value = design.cardStyle || 'sega';
     document.getElementById('g-carouselMode').value = design.carouselMode || 'coverflow';
     document.getElementById('g-rx').value = design.carouselRadiusX ?? 100;
@@ -539,6 +622,24 @@ function resetStudio() { location.reload(); }
 window.addEventListener('DOMContentLoaded', initStudio);
 
 const STUDIO_EN = {
+    "Кнопка «Обучение (?)»": "Button «Tutorial (?)»",
+    "Фоновый эффект / шейдер:": "Background Effect / Shader:",
+    "Без эффекта (только градиент)": "None (Gradient Only)",
+    "Ретро-сетка (Synthwave)": "Retro Grid (Synthwave)",
+    "Скоростные линии (Speed Lines)": "Speed Lines",
+    "Шахматка Green Hill": "Green Hill Checkerboard",
+    "Парящие искры Изумрудов": "Floating Emerald Sparks",
+    "Игры и пути": "Games & Paths",
+    "Моды": "Mods",
+    "Настройки игры": "Game Tweaks",
+    "Скриншоты": "Screenshots",
+    "Прогресс": "Progress",
+    "Тема": "Theme",
+    "Рулетка • Игра • Сейвы": "Roulette • Game • Saves",
+    "Атмосфера": "Atmosphere",
+    "← → ВЫБОР • ENTER ЗАПУСК • F6 СКРИНШОТ": "← → SELECT • ENTER LAUNCH • F6 SCREENSHOT",
+    "RU • Русский ▾": "EN • English ▾",
+    "Элемент": "Element",
     "Отпустите .JSON или .SONICPACK файл для загрузки в студию": "Drop .JSON or .SONICPACK file to load into Studio",
     "Импорт .JSON / .SONICPACK": "Import .JSON / .SONICPACK",
     "Новый шаблон": "New Template",
@@ -618,6 +719,7 @@ function setStudioLang(lang) {
             node.nodeValue = base;
         }
     }
+    if (typeof syncInspector === 'function' && selectedHud) syncInspector();
 }
 </script>
 </body>

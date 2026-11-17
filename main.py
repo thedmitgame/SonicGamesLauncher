@@ -1,20 +1,21 @@
-import hashlib
-import struct
-import re
-import base64
-import zipfile
-import webview
-import json
-import os
-import subprocess
-import threading
-import sys
-import time
-import shutil
-import ctypes
+import webbrowser
+import shlex
+import base64, zipfile, webview, json, os, subprocess
+import threading, sys, time, shutil, ctypes, urllib.parse
 from datetime import datetime
 from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
-import urllib.parse
+
+from core.config import (
+    BASE_DIR, RESOURCE_DIR, CONFIG_FILE, IMAGES_DIR, SOUNDS_DIR,
+    FONTS_DIR, SCREENSHOTS_DIR, THEMES_DIR, DEFAULT_GAMES, DEFAULT_DESIGN,
+    sanitize_filename, cleanup_old_files, load_config, save_config,
+    find_asset, scan_all_sounds, find_floating_objects
+)
+from core.mods import resolve_mods_dir, get_game_mods, toggle_game_mod, save_mods_state
+from core.tweaks import get_game_tweaks, save_game_tweaks
+from core.saves import parse_game_progress
+from core.scanner import auto_scan_games
+from core.gamebanana import fetch_gb_mods, fetch_gb_mod_details, detect_local_game_version
 
 try:
     import pystray
@@ -24,399 +25,12 @@ try:
 except ImportError:
     HAS_EXTRAS = False
 
-if getattr(sys, 'frozen', False):
-    BASE_DIR = os.path.dirname(sys.executable)
-    RESOURCE_DIR = sys._MEIPASS
-else:
-    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-    RESOURCE_DIR = BASE_DIR
-
-def sanitize_filename(name):
-    return re.sub(r'[\\/*?:"<>|]', "_", str(name)).strip() or "sonic_theme_pack"
-
-def cleanup_old_files(folder, prefix):
-    for fn in os.listdir(folder):
-        if fn.startswith(prefix):
-            try:
-                os.remove(os.path.join(folder, fn))
-            except Exception:
-                pass
-CONFIG_FILE = os.path.join(BASE_DIR, "sonic_launcher_config.json")
-IMAGES_DIR = os.path.join(BASE_DIR, "images")
-SOUNDS_DIR = os.path.join(BASE_DIR, "sounds")
-FONTS_DIR = os.path.join(BASE_DIR, "fonts")
-SCREENSHOTS_DIR = os.path.join(BASE_DIR, "screenshots")
-THEMES_DIR = os.path.join(BASE_DIR, "themes")
-
-for folder in (IMAGES_DIR, SOUNDS_DIR, FONTS_DIR, SCREENSHOTS_DIR, THEMES_DIR):
-    os.makedirs(folder, exist_ok=True)
-
-DEFAULT_GAMES = [
-    {"id": "sonic1", "name": "Sonic 1 Forever", "color": "#1E90FF", "tag": "1991 • REMASTER"},
-    {"id": "sonic2", "name": "Sonic 2 Absolute", "color": "#FF8C00", "tag": "1992 • REMASTER"},
-    {"id": "soniccd", "name": "Sonic CD Restored", "color": "#FF69B4", "tag": "1993 • REMASTER"},
-    {"id": "sonic3", "name": "Sonic 3 A.I.R.", "color": "#DC143C", "tag": "1994 • WIDESCREEN"},
-    {"id": "origins", "name": "Sonic Origins", "color": "#2E8B57", "tag": "COLLECTION"}
-]
-
-DEFAULT_DESIGN = {
-    "cardWidth": 210,
-    "cardRadius": 14,
-    "cardStyle": "glass",
-    "shaderType": "none",
-    "logoHeight": 75,
-    "fontFamily": "'Segoe UI', Roboto, Arial, sans-serif",
-    "customFontUrl": "",
-    "customFontName": "",
-    "fontScale": 100,
-    "textColor": "#ffffff",
-    "titleColor": "#FFD700",
-    "backdropOpacity": 55,
-    "backdropBlur": 4,
-    "objOpacity": 45,
-    "objCount": 14,
-    "objSpeed": 5,
-    "sfxVolume": 70,
-    "bgmVolume": 40,
-    "minimizeOnLaunch": True,
-    "minimizeToTray": False,
-    "appIconUrl": "",
-    "appIconName": "",
-    "screenshotKey": "f6",
-    "characters": {},
-    "customLayout": {},
-    "gradients": {
-        "default": ["#090d16", "#0d2b6b"],
-        "sonic1": ["#041e42", "#0077ff"],
-        "sonic2": ["#2b1100", "#ff7700"],
-        "soniccd": ["#1a1446", "#d63384"],
-        "sonic3": ["#091d42", "#c8102e"],
-        "origins": ["#072617", "#1e8e54"]
-    }
-}
 
 window_instance = None
 tray_icon = None
 active_game_id = None
 current_hotkey = None
 
-def load_config():
-    if os.path.exists(CONFIG_FILE):
-        try:
-            with open(CONFIG_FILE, "r", encoding="utf-8") as f:
-                data = json.load(f)
-                if "paths" not in data:
-                    return {
-                        "gamesOrder": DEFAULT_GAMES, "paths": data, "launchArgs": {},
-                        "modPaths": {}, "modPresets": {}, "smmPath": "",
-                        "playtime": {}, "design": DEFAULT_DESIGN
-                    }
-                design = {**DEFAULT_DESIGN, **data.get("design", {})}
-                return {
-                    "gamesOrder": data.get("gamesOrder", DEFAULT_GAMES),
-                    "paths": data.get("paths", {}),
-                    "launchArgs": data.get("launchArgs", {}),
-                    "modPaths": data.get("modPaths", {}),
-                    "modPresets": data.get("modPresets", {}),
-                    "smmPath": data.get("smmPath", ""),
-                    "playtime": data.get("playtime", {}),
-                    "design": design,
-                    "intro_enabled": data.get("intro_enabled", False),
-                    "intro_media_path": data.get("intro_media_path", ""),
-                    "daytime_fx": data.get("daytime_fx", True),
-                    "daytime_override": data.get("daytime_override", "auto"),
-                    "lang": data.get("lang", "ru")
-                }
-        except Exception:
-            pass
-    return {
-        "gamesOrder": DEFAULT_GAMES, "paths": {}, "launchArgs": {},
-        "modPaths": {}, "modPresets": {}, "smmPath": "",
-        "playtime": {}, "design": DEFAULT_DESIGN
-    }
-
-def save_config(data):
-    with open(CONFIG_FILE, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=4, ensure_ascii=False)
-
-def find_asset(folder, url_prefix, name, extensions):
-    for ext in extensions:
-        filename = f"{name}{ext}"
-        if os.path.exists(os.path.join(folder, filename)):
-            return f"{url_prefix}/{filename}"
-    return None
-
-def scan_all_sounds():
-    names = [
-        "startup", "switch", "launch", "open_menu", "close_menu", "exit", "screenshot",
-        "default_bgm", "sonic1_bgm", "sonic2_bgm", "soniccd_bgm", "sonic3_bgm", "origins_bgm"
-    ]
-    found = {}
-    for n in names:
-        url = find_asset(SOUNDS_DIR, "/sounds", n, ['.mp3', '.wav', '.ogg'])
-        if url:
-            found[n] = url
-    return found
-
-def find_floating_objects():
-    objects = []
-    if os.path.exists(IMAGES_DIR):
-        for fname in sorted(os.listdir(IMAGES_DIR)):
-            lower = fname.lower()
-            if lower.startswith("object") and lower.endswith(('.png', '.jpg', '.jpeg', '.webp', '.gif')):
-                objects.append(f"/images/{fname}")
-    return objects
-
-def resolve_mods_dir(game_id, cfg):
-    custom = cfg.get("modPaths", {}).get(game_id, "")
-    if custom and os.path.exists(custom):
-        return custom
-    if game_id == "sonic3":
-        appdata = os.environ.get("APPDATA", "")
-        s3_mods = os.path.join(appdata, "Sonic3AIR", "mods")
-        if os.path.exists(s3_mods):
-            return s3_mods
-    exe = cfg.get("paths", {}).get(game_id, "")
-    if exe and os.path.exists(exe):
-        game_mods = os.path.join(os.path.dirname(exe), "mods")
-        if os.path.exists(game_mods):
-            return game_mods
-    return ""
-
-def find_modconfig_path(mods_dir):
-    in_mods = os.path.join(mods_dir, "modconfig.ini")
-    if os.path.exists(in_mods):
-        return in_mods
-    in_root = os.path.join(os.path.dirname(mods_dir), "modconfig.ini")
-    if os.path.exists(in_root):
-        return in_root
-    return in_mods
-
-def get_game_mods(game_id, cfg):
-    mods_dir = resolve_mods_dir(game_id, cfg)
-    presets = cfg.get("modPresets", {}).get(game_id, {})
-    if not mods_dir or not os.path.exists(mods_dir):
-        return {"modsDir": mods_dir, "mods": [], "presets": presets, "supported": game_id != "origins"}
-
-    mods_list = []
-    if game_id == "sonic3":
-        active_file = os.path.join(os.path.dirname(mods_dir), "active-mods.json")
-        active_lower = set()
-        if os.path.exists(active_file):
-            try:
-                with open(active_file, "r", encoding="utf-8-sig") as f:
-                    data = json.load(f)
-                    for item in data.get("ActiveMods", []):
-                        active_lower.add(str(item).strip().lower())
-            except Exception:
-                pass
-        for folder in sorted(os.listdir(mods_dir)):
-            full = os.path.join(mods_dir, folder)
-            if not os.path.isdir(full):
-                continue
-            title, author = folder, "Неизвестно"
-            meta = os.path.join(full, "mod.json")
-            if os.path.exists(meta):
-                try:
-                    with open(meta, "r", encoding="utf-8-sig") as f:
-                        m = json.load(f).get("Metadata", {})
-                        title = m.get("Name", folder)
-                        author = m.get("Author", "Неизвестно")
-                except Exception:
-                    pass
-            mods_list.append({
-                "id": folder, "title": title, "author": author,
-                "enabled": folder.strip().lower() in active_lower
-            })
-    else:
-        modconfig = find_modconfig_path(mods_dir)
-        enabled_map = {}
-        if os.path.exists(modconfig):
-            try:
-                with open(modconfig, "r", encoding="utf-8-sig", errors="ignore") as f:
-                    for line in f:
-                        line = line.strip()
-                        if "=" in line and not line.startswith(";") and not line.startswith("#"):
-                            k, v = line.split("=", 1)
-                            enabled_map[k.strip().lower()] = v.strip().lower() in ("true", "1", "yes")
-            except Exception:
-                pass
-
-        for folder in sorted(os.listdir(mods_dir)):
-            full = os.path.join(mods_dir, folder)
-            if not os.path.isdir(full):
-                continue
-            title, author = folder, "Неизвестно"
-            ini_path = os.path.join(full, "mod.ini")
-            if os.path.exists(ini_path):
-                try:
-                    with open(ini_path, "r", encoding="utf-8-sig", errors="ignore") as f:
-                        for line in f:
-                            line = line.strip()
-                            if "=" in line:
-                                k, v = line.split("=", 1)
-                                kl = k.strip().lower()
-                                if kl == "name":
-                                    title = v.strip()
-                                elif kl == "author":
-                                    author = v.strip()
-                except Exception:
-                    pass
-            mods_list.append({
-                "id": folder, "title": title, "author": author,
-                "enabled": enabled_map.get(folder.strip().lower(), False)
-            })
-    return {"modsDir": mods_dir, "mods": mods_list, "presets": presets, "supported": True}
-def toggle_game_mod(game_id, mod_id, enabled, cfg):
-    mods_dir = resolve_mods_dir(game_id, cfg)
-    if not mods_dir or not os.path.exists(mods_dir):
-        return False
-    if game_id == "sonic3":
-        active_file = os.path.join(os.path.dirname(mods_dir), "active-mods.json")
-        data = {"ActiveMods": []}
-        if os.path.exists(active_file):
-            try:
-                with open(active_file, "r", encoding="utf-8-sig") as f:
-                    data = json.load(f)
-            except Exception:
-                pass
-        active = [x for x in data.get("ActiveMods", []) if str(x).strip().lower() != mod_id.strip().lower()]
-        if enabled:
-            active.insert(0, mod_id)
-        data["ActiveMods"] = active
-        with open(active_file, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=4, ensure_ascii=False)
-        return True
-    else:
-        modconfig = find_modconfig_path(mods_dir)
-        lines = []
-        found = False
-        if os.path.exists(modconfig):
-            try:
-                with open(modconfig, "r", encoding="utf-8-sig", errors="ignore") as f:
-                    for line in f:
-                        stripped = line.strip()
-                        if "=" in stripped and not stripped.startswith(";"):
-                            k, _ = stripped.split("=", 1)
-                            if k.strip().lower() == mod_id.strip().lower():
-                                lines.append(f"{k.strip()}={'true' if enabled else 'false'}\n")
-                                found = True
-                                continue
-                        lines.append(line if line.endswith("\n") else line + "\n")
-            except Exception:
-                pass
-        if not found:
-            if not any(l.strip().lower() == "[mods]" for l in lines):
-                lines.append("[mods]\n")
-            lines.append(f"{mod_id}={'true' if enabled else 'false'}\n")
-        with open(modconfig, "w", encoding="utf-8") as f:
-            f.writelines(lines)
-        return True
-
-def get_game_tweaks(game_id, cfg):
-    if game_id == "sonic3":
-        appdata = os.environ.get("APPDATA", "")
-        s3_cfg = os.path.join(appdata, "Sonic3AIR", "settings.json")
-        tweaks = {"fullscreen": False, "vsync": True, "devmode": False, "filtering": False, "supported": True}
-        if os.path.exists(s3_cfg):
-            try:
-                with open(s3_cfg, "r", encoding="utf-8-sig") as f:
-                    d = json.load(f)
-                    tweaks["fullscreen"] = bool(d.get("Fullscreen", 0))
-                    tweaks["vsync"] = bool(d.get("VSync", 1))
-                    tweaks["devmode"] = bool(d.get("DevMode", 0))
-                    tweaks["filtering"] = bool(d.get("Filtering", 0))
-            except Exception:
-                pass
-        return tweaks
-
-    exe = cfg.get("paths", {}).get(game_id, "")
-    if not exe or not os.path.exists(exe) or game_id == "origins":
-        return {"supported": False}
-
-    ini_path = os.path.join(os.path.dirname(exe), "settings.ini")
-    tweaks = {"fullscreen": False, "borderless": False, "vsync": True, "devmode": False, "filtering": False, "supported": True}
-    if os.path.exists(ini_path):
-        try:
-            with open(ini_path, "r", encoding="utf-8-sig", errors="ignore") as f:
-                for line in f:
-                    s = line.strip()
-                    if "=" in s and not s.startswith(";"):
-                        k, v = s.split("=", 1)
-                        kl = k.strip().lower()
-                        val = v.strip().lower() in ("true", "1", "yes")
-                        if kl == "fs":
-                            tweaks["fullscreen"] = val
-                        elif kl == "borderless":
-                            tweaks["borderless"] = val
-                        elif kl == "vsync":
-                            tweaks["vsync"] = val
-                        elif kl == "devmenu":
-                            tweaks["devmode"] = val
-                        elif kl in ("pixelfilter", "filtering"):
-                            tweaks["filtering"] = val
-        except Exception:
-            pass
-    return tweaks
-
-def save_game_tweaks(game_id, tweaks, cfg):
-    if game_id == "sonic3":
-        appdata = os.environ.get("APPDATA", "")
-        s3_cfg = os.path.join(appdata, "Sonic3AIR", "settings.json")
-        if os.path.exists(s3_cfg):
-            try:
-                with open(s3_cfg, "r", encoding="utf-8-sig") as f:
-                    d = json.load(f)
-                d["Fullscreen"] = 1 if tweaks.get("fullscreen") else 0
-                d["VSync"] = 1 if tweaks.get("vsync") else 0
-                d["DevMode"] = 1 if tweaks.get("devmode") else 0
-                d["Filtering"] = 1 if tweaks.get("filtering") else 0
-                with open(s3_cfg, "w", encoding="utf-8") as f:
-                    json.dump(d, f, indent=4)
-                return True
-            except Exception:
-                pass
-        return False
-
-    exe = cfg.get("paths", {}).get(game_id, "")
-    if not exe or not os.path.exists(exe):
-        return False
-
-    ini_path = os.path.join(os.path.dirname(exe), "settings.ini")
-    key_map = {
-        "fs": "true" if tweaks.get("fullscreen") else "false",
-        "borderless": "true" if tweaks.get("borderless") else "false",
-        "vsync": "true" if tweaks.get("vsync") else "false",
-        "devmenu": "true" if tweaks.get("devmode") else "false",
-        "pixelfilter": "true" if tweaks.get("filtering") else "false"
-    }
-    lines = []
-    updated = set()
-    if os.path.exists(ini_path):
-        try:
-            with open(ini_path, "r", encoding="utf-8-sig", errors="ignore") as f:
-                for line in f:
-                    s = line.strip()
-                    if "=" in s and not s.startswith(";"):
-                        k, _ = s.split("=", 1)
-                        kl = k.strip().lower()
-                        if kl in key_map:
-                            lines.append(f"{k.strip()}={key_map[kl]}\n")
-                            updated.add(kl)
-                            continue
-                    lines.append(line if line.endswith("\n") else line + "\n")
-        except Exception:
-            pass
-
-    if not any(l.strip().lower() == "[video]" for l in lines):
-        lines.append("[Video]\n")
-    for kl, val in key_map.items():
-        if kl not in updated:
-            lines.append(f"{kl}={val}\n")
-
-    with open(ini_path, "w", encoding="utf-8") as f:
-        f.writelines(lines)
-    return True
 
 def play_native_sound(sound_path, vol_percent=70):
     if not sound_path or not os.path.exists(sound_path) or vol_percent <= 0:
@@ -575,514 +189,6 @@ def open_native_dialog(filetypes=None, is_dir=False, initialdir=None):
     return chosen["path"].strip()
 
 
-RSDK_CACHE_DIR = os.path.join(BASE_DIR, "rsdk_cache")
-os.makedirs(RSDK_CACHE_DIR, exist_ok=True)
-
-def decrypt_origins_data_dat():
-    app_base = os.path.join(os.environ.get("APPDATA", ""), "SEGA", "SonicOrigins", "steam")
-    if not os.path.isdir(app_base):
-        return b""
-    dat_path = None
-    for uid in os.listdir(app_base):
-        cand = os.path.join(app_base, uid, "game", "data.dat")
-        if os.path.exists(cand):
-            dat_path = cand
-            break
-    if not dat_path:
-        return b""
-    try:
-        with open(dat_path, "rb") as f:
-            raw = f.read()
-        if len(raw) <= 64:
-            return b""
-        body = raw[64:]
-        xor_key = bytes.fromhex("dadecf25a079d673ab43f286b1188401")
-        dec = bytes(b ^ xor_key[i % 16] for i, b in enumerate(body))
-        return dec
-    except Exception:
-        return b""
-
-def read_steam_origins_stats():
-    try:
-        import winreg
-        key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Software\Valve\Steam")
-        steam_path, _ = winreg.QueryValueEx(key, "SteamPath")
-        stats_dir = os.path.join(steam_path, "appcache", "stats")
-        if not os.path.isdir(stats_dir):
-            return {"found": False, "note": "Папка статистики Steam не найдена"}
-
-        schema_path = os.path.join(stats_dir, "UserGameStatsSchema_1794960.bin")
-        user_stats_path = None
-        for fn in os.listdir(stats_dir):
-            if "1794960" in fn and fn.lower().endswith(".bin") and "schema" not in fn.lower():
-                user_stats_path = os.path.join(stats_dir, fn)
-                break
-
-        if not os.path.exists(schema_path) and not user_stats_path:
-            return {"found": False, "note": "Статистика Steam для Sonic Origins (1794960) ещё не создана"}
-
-        # 1. Извлекаем 36 официальных названий достижений из Steam Schema под выбранный язык (ru / en)
-        cur_lang = load_config().get("lang", "ru")
-        lang_tag = b"\x01russian\x00" if cur_lang == "ru" else b"\x01english\x00"
-        ru_titles = []
-        if os.path.exists(schema_path):
-            with open(schema_path, "rb") as bf:
-                raw = bf.read()
-            lang_strings = re.findall(lang_tag + b"([^\x00]{2,140})\x00", raw)
-            if not lang_strings and lang_tag != b"\x01english\x00":
-                lang_strings = re.findall(b"\x01english\x00([^\x00]{2,140})\x00", raw)
-            for i in range(0, len(lang_strings), 2):
-                ru_titles.append(lang_strings[i].decode("utf-8", errors="ignore").strip())
-
-        # 2. Читаем битовую маску 36 достижений из UserGameStats
-        unlocked_mask = 0
-        if user_stats_path and os.path.exists(user_stats_path):
-            with open(user_stats_path, "rb") as uf:
-                u_raw = uf.read()
-            m1 = u_raw.find(b"\x001\x00\x02data\x00")
-            if m1 != -1 and m1 + 13 <= len(u_raw):
-                low32 = int.from_bytes(u_raw[m1 + 9 : m1 + 13], "little", signed=False)
-                unlocked_mask |= low32
-            cut_pos = u_raw.find(b"AchievementTimes")
-            search_area = u_raw[:cut_pos] if cut_pos != -1 else u_raw
-            m2 = search_area.find(b"\x002\x00\x02data\x00")
-            if m2 != -1 and m2 + 13 <= len(search_area):
-                high32 = int.from_bytes(search_area[m2 + 9 : m2 + 13], "little", signed=False)
-                unlocked_mask |= (high32 << 32)
-            for extra_bit in range(32, 36):
-                tag = f"\x00{extra_bit}\x00\x02data\x00".encode("ascii")
-                if tag in u_raw:
-                    unlocked_mask |= (1 << extra_bit)
-
-        ach_entries = []
-        for i in range(36):
-            title = ru_titles[i] if i < len(ru_titles) else f"Достижение #{i+1}"
-            ach_entries.append({"name": title, "done": bool((unlocked_mask >> i) & 1)})
-
-        # 3. Расшифровываем data.dat и проверяем точные диапазоны 4 игр (по бинарному анализу data.dat)
-        dec_dat = b""
-        app_base = os.path.join(os.environ.get("APPDATA", ""), "SEGA", "SonicOrigins", "steam")
-        if os.path.isdir(app_base):
-            for uid in os.listdir(app_base):
-                cand = os.path.join(app_base, uid, "game", "data.dat")
-                if os.path.exists(cand):
-                    with open(cand, "rb") as df:
-                        raw_d = df.read()
-                    if len(raw_d) > 64:
-                        xk = bytes.fromhex("dadecf25a079d673ab43f286b1188401")
-                        dec_dat = bytes(b ^ xk[idx % 16] for idx, b in enumerate(raw_d[64:]))
-                    break
-
-        slots_info = []
-        total_emeralds = 0
-        if dec_dat and len(dec_dat) >= 5200:
-            game_specs = [
-                ("Sonic The Hedgehog 1", 0, 912, "Соник"),
-                ("Sonic CD", 912, 2050, "Соник"),
-                ("Sonic The Hedgehog 2", 3150, 5200, "Соник и Тейлз"),
-                ("Sonic 3 & Knuckles", 4300, 4600, ""),
-            ]
-            # Строго проверяем достижения именно за сбор всех 7 Изумрудов Хаоса или 7 Камней Времени
-            chaos_done = any(a["done"] and ("изумруд" in a["name"].lower() and "супер-изумруд" not in a["name"].lower()) for a in ach_entries)
-            stones_done = any(a["done"] and ("камн" in a["name"].lower()) for a in ach_entries)
-            super_em_done = any(a["done"] and ("супер-изумруд" in a["name"].lower()) for a in ach_entries)
-
-            for g_name, s_start, s_end, default_hero in game_specs:
-                seg = dec_dat[s_start:s_end]
-                nz_words = sum(
-                    1 for off in range(0, len(seg) - 3, 4)
-                    if int.from_bytes(seg[off : off + 4], "little") not in (0, 0xFFFFFFFF)
-                )
-                if nz_words >= 4:
-                    if g_name == "Sonic CD":
-                        em_cnt = 7 if stones_done else 0
-                    elif g_name == "Sonic 3 & Knuckles":
-                        em_cnt = 7 if (chaos_done or super_em_done) else 0
-                    else:
-                        em_cnt = 7 if chaos_done else 0
-
-                    total_emeralds = max(total_emeralds, em_cnt)
-                    slots_info.append({
-                        "name": g_name,
-                        "info": f"Сохранение активно • Изумрудов/Камней: {em_cnt}/7"
-                    })
-                else:
-                    slots_info.append({
-                        "name": f"{g_name} (Нет сохранения)",
-                        "info": "Слот пуст • Изумрудов/Камней: 0/7"
-                    })
-        else:
-            slots_info.append({"name": "Steam Cloud Save (Sonic Origins)", "info": "Файл data.dat не найден"})
-
-        total_done = sum(1 for a in ach_entries if a["done"])
-        return {
-            "found": True,
-            "emeralds": total_emeralds,
-            "slots": slots_info,
-            "details": f"Открыто достижений Steam: {total_done} из 36",
-            "achievements": ach_entries
-        }
-    except Exception as e:
-        return {"found": False, "note": f"Ошибка чтения Steam: {e}"}
-
-def rsdkv4_decrypt_chunk(data, filename_upper, file_size):
-    key1 = hashlib.md5(filename_upper.encode("utf-8")).digest()
-    key2 = hashlib.md5(str(file_size).encode("utf-8")).digest()
-    out = bytearray(len(data))
-    k1_pos = 0
-    k2_pos = 8
-    swap = False
-    for i, b in enumerate(data):
-        val = b ^ key1[k1_pos] ^ key2[k2_pos]
-        if swap:
-            val = ((val & 0x0F) << 4) | ((val & 0xF0) >> 4)
-        out[i] = val
-        k1_pos = (k1_pos + 1) & 15
-        k2_pos = (k2_pos + 1) & 15
-        if k1_pos == 0:
-            swap = not swap
-    return bytes(out)
-
-BUILTIN_ACHIEVEMENTS = {
-    "sonic1": [
-        "Blast Processing",
-        "Ring King",
-        "Ramp Ring Acrobatics",
-        "Secret of Marble Zone",
-        "Block Buster",
-        "Rooftop Run",
-        "Chaos Connoisseur",
-        "Secret of Labyrinth Zone",
-        "Flawless Pursuit",
-        "Out of Order",
-        "Bombs Away",
-        "Hidden Transporter",
-        "Eye Protection",
-        "One for the Road",
-        "Beat the Clock",
-        "Stairway To Heaven",
-        "Death Chamber",
-        "Get to the Points",
-        "Monitor Mania"
-    ],
-    "sonic2": [
-        "Super Sonic Time Attack",
-        "Expert's Challenge",
-        "Tour of the Plant",
-        "Quick Run",
-        "100% Chemical Free",
-        "Early Bird Special",
-        "Superstar",
-        "Gambling Problem",
-        "Bop Non-Stop",
-        "Perfectionist",
-        "No Future Here",
-        "Metropolis Master",
-        "Beat the Clock... Again...",
-        "Scrambled Egg"
-    ],
-    "soniccd": [
-        "88 Miles Per Hour",
-        "Just one hug is enough",
-        "Take the High Road",
-        "King of the Rings",
-        "Statue Saviour",
-        "Heavy Metal",
-        "Paradise Found",
-        "All Stages Clear!",
-        "Treasure Hunter",
-        "Dr. Eggman Got Served",
-        "Just in Time!",
-        "Saviour of the Planet",
-        "Dr. Robotnik Got Served"
-    ],
-    "sonic3": [
-        "Attracted to Shiny Things",
-        "Double Dose of Stars",
-        "Old-Fashioned Life Insurance",
-        "Going Hyper",
-        "Score Millionaire",
-        "Electrofishing",
-        "Longplay",
-        "Tidied Up the Place",
-        "Is There An Exit Up There",
-        "Jackpot",
-        "Bursting Through the Jungle",
-        "Attracted to Giant Shiny Things",
-        "Greedy Snowboarder",
-        "Once See the Sunrise",
-        "Fluffy Fur Must Not Get Wet",
-        "Display Smasher",
-        "Squirrels On a Plane",
-        "No Touchy"
-    ]
-}
-
-def read_udata_bytes(game_dir):
-    if not game_dir or not os.path.isdir(game_dir):
-        return b""
-    for root, _, files in os.walk(game_dir):
-        for fn in files:
-            if fn.lower() in ("udata.bin", "achdata.bin", "achievements.bin"):
-                try:
-                    with open(os.path.join(root, fn), "rb") as f:
-                        return f.read()
-                except Exception:
-                    pass
-    return b""
-
-def extract_native_achievements(gid, game_dir, raw_save_bytes):
-    titles = BUILTIN_ACHIEVEMENTS.get(gid, [])
-    if not titles:
-        return []
-
-    udata_bytes = read_udata_bytes(game_dir)
-    if not raw_save_bytes and not udata_bytes:
-        return [{"name": t, "done": False} for t in titles]
-
-    if gid == "sonic3":
-        # Точное соответствие BUILTIN_ACHIEVEMENTS["sonic3"] и констант из defines_achievements.lemon:
-        s3_ach_ids = (
-            0x0001,  # 0: Attracted to Shiny Things (ACHIEVEMENT_300_RINGS)
-            0x0002,  # 1: Double Dose of Stars (ACHIEVEMENT_DOUBLE_INVINCIBILITY)
-            0x0010,  # 2: Old-Fashioned Life Insurance (ACHIEVEMENT_CONTINUES)
-            0x0011,  # 3: Going Hyper (ACHIEVEMENT_GOING_HYPER)
-            0x0012,  # 4: Score Millionaire (ACHIEVEMENT_SCORE)
-            0x0013,  # 5: Electrofishing (ACHIEVEMENT_ELECTROCUTE)
-            0x0020,  # 6: Longplay (ACHIEVEMENT_LONGPLAY)
-            0x0101,  # 7: Tidied Up the Place (ACHIEVEMENT_SSZ_DECOYS / AIZ) -> проверим точное сопоставление ниже
-            0x1401,  # 8: Is There An Exit Up There (ACHIEVEMENT_GS_EXIT_TOP)
-            0x1501,  # 9: Jackpot (ACHIEVEMENT_SM_JACKPOT)
-            0x0101,  # 10: Bursting Through the Jungle (ACHIEVEMENT_AIZ_TIMEATTACK)
-            0x0301,  # 11: Attracted to Giant Shiny Things (ACHIEVEMENT_MGZ_GIANTRINGS)
-            0x0501,  # 12: Greedy Snowboarder (ACHIEVEMENT_ICZ_SNOWBOARDING)
-            0x0502,  # 13: Once See the Sunrise (ACHIEVEMENT_ICZ_KNUX_SUNRISE)
-            0x0601,  # 14: Fluffy Fur Must Not Get Wet (ACHIEVEMENT_LBZ_STAY_DRY)
-            0x0701,  # 15: Display Smasher (ACHIEVEMENT_MHZ_OPEN_MONITORS)
-            0x0801,  # 16: Squirrels On a Plane (ACHIEVEMENT_FBZ_FREE_ANIMALS)
-            0x1601,  # 17: No Touchy (ACHIEVEMENT_BS_PERFECT)
-        )
-        # Примечание: индекс 7 ("Tidied Up the Place") — это ACHIEVEMENT_SSZ_DECOYS (0x0c01)
-        s3_ach_ids = (
-            0x0001, 0x0002, 0x0010, 0x0011, 0x0012, 0x0013,
-            0x0020, 0x0c01, 0x1401, 0x1501, 0x0101, 0x0301,
-            0x0501, 0x0502, 0x0601, 0x0701, 0x0801, 0x1601
-        )
-
-        unlocked_ids = set()
-        if raw_save_bytes:
-            # Формат 1: новый контейнер OXY.PDATA (storage/s3air_achievements.bin)
-            if raw_save_bytes.startswith(b"OXY.PDATA\x00"):
-                sec_tag = b"Achievements"
-                sec_pos = raw_save_bytes.find(sec_tag)
-                if sec_pos != -1 and sec_pos + len(sec_tag) + 8 <= len(raw_save_bytes):
-                    v_len = int.from_bytes(raw_save_bytes[sec_pos + len(sec_tag) : sec_pos + len(sec_tag) + 4], "little")
-                    payload = raw_save_bytes[sec_pos + len(sec_tag) + 4 : sec_pos + len(sec_tag) + 4 + v_len]
-                    if len(payload) >= 4:
-                        cnt = int.from_bytes(payload[0:4], "little")
-                        for i in range(cnt):
-                            off = 4 + i * 8
-                            if off + 8 <= len(payload):
-                                aid = int.from_bytes(payload[off : off + 4], "little")
-                                st = int.from_bytes(payload[off + 4 : off + 8], "little")
-                                if st > 0:
-                                    unlocked_ids.add(aid)
-
-            # Формат 2: классический файл S3AIRPGR (playerprogress.bin)
-            elif raw_save_bytes.startswith(b"S3AIRPGR") and len(raw_save_bytes) >= 0x26:
-                cnt = int.from_bytes(raw_save_bytes[0x22:0x26], "little")
-                for i in range(min(cnt, 64)):
-                    off = 0x26 + i * 8
-                    if off + 8 <= len(raw_save_bytes):
-                        aid = int.from_bytes(raw_save_bytes[off : off + 4], "little")
-                        st = int.from_bytes(raw_save_bytes[off + 4 : off + 8], "little")
-                        if st > 0:
-                            unlocked_ids.add(aid)
-
-        results = []
-        for idx, title in enumerate(titles):
-            aid = s3_ach_ids[idx]
-            results.append({"name": title, "done": aid in unlocked_ids})
-        return results
-
-    def get_ones_indices(buf):
-        ones = set()
-        limit = min(len(buf) - 3, 8192)
-        for off in range(128, limit, 4):
-            # Пропускаем область настроек движка (saveRAM[1000..1020] -> offset 4000..4080)
-            if 4000 <= off <= 4080:
-                continue
-            val = int.from_bytes(buf[off : off + 4], "little", signed=False)
-            if val in (1, 2):
-                ones.add(off // 4)
-        return ones
-
-    sdata_ones = get_ones_indices(raw_save_bytes) if raw_save_bytes else set()
-    udata_ones = get_ones_indices(udata_bytes) if udata_bytes else set()
-
-    # Выводим в консоль найденные флаги для прозрачной диагностики любого сейва
-    print(f"[Progress {gid}] SData saveRAM flags==1: {sorted(sdata_ones)} | UData flags: {sorted(udata_ones)}")
-
-    results = []
-    if gid == "sonic2":
-        s2_exact_idx = (
-            412,  # 0: Super Sonic Time Attack
-            411,  # 1: Expert's Challenge
-            414,  # 2: Tour of the Plant
-            400,  # 3: Quick Run
-            401,  # 4: 100% Chemical Free
-            402,  # 5: Early Bird Special
-            403,  # 6: Superstar
-            404,  # 7: Gambling Problem
-            405,  # 8: Bop Non-Stop
-            406,  # 9: Perfectionist
-            407,  # 10: No Future Here
-            408,  # 11: Metropolis Master
-            409,  # 12: Beat the Clock... Again...
-            410,  # 13: Scrambled Egg
-        )
-        for idx, title in enumerate(titles):
-            ram_idx = s2_exact_idx[idx]
-            results.append({"name": title, "done": ram_idx in sdata_ones})
-        return results
-
-    # Для Sonic 1 Forever и Sonic CD Restored: проверяем стандартный блок RSDKv4 saveRAM[400+i], [630+i], [800+i] и UData
-    if gid == "soniccd":
-        scd_idx = (
-            257,  # 0: 88 Miles Per Hour
-            258,  # 1: Just one hug is enough
-            260,  # 2: Take the High Road
-            259,  # 3: King of the Rings
-            262,  # 4: Statue Saviour
-            261,  # 5: Heavy Metal
-            263,  # 6: Paradise Found
-            264,  # 7: All Stages Clear!
-            265,  # 8: Treasure Hunter
-            266,  # 9: Dr. Eggman Got Served
-            267,  # 10: Just in Time!
-            268,  # 11: Saviour of the Planet
-            1605, # 12: Dr. Robotnik Got Served (бонусное 13-е достижение ремастера)
-        )
-        for idx, title in enumerate(titles):
-            ram_i = scd_idx[idx]
-            is_done = (ram_i in sdata_ones) or (idx == 12 and 269 in sdata_ones)
-            results.append({"name": title, "done": is_done})
-        return results
-
-    for idx, title in enumerate(titles):
-        is_done = ((400 + idx) in sdata_ones) or (idx in udata_ones)
-        results.append({"name": title, "done": is_done})
-
-    return results
-
-def parse_game_progress(gid, cfg):
-    if gid == "origins":
-        st = read_steam_origins_stats()
-        if st.get("found"):
-            achs = st.get("achievements", [])
-            done_cnt = sum(1 for a in achs if a.get("done"))
-            return {
-                "supported": True,
-                "title": f"Достижения Steam ({done_cnt} из {len(achs)})",
-                "hideEmeralds": True,
-                "emeralds": 0, "maxEmeralds": 0,
-                "slots": [],
-                "achievements": achs
-            }
-        return {"supported": False, "note": st.get("note", "Запустите игру через Steam хотя бы один раз")}
-
-    exe_path = cfg.get("paths", {}).get(gid, "")
-    game_dir = os.path.dirname(exe_path) if exe_path else ""
-    slots, max_emeralds, raw_bytes = [], 0, b""
-
-    if gid == "sonic3":
-        s3_appdata = os.path.join(os.environ.get("APPDATA", ""), "Sonic3AIR")
-        slot_candidates = [
-            os.path.join(s3_appdata, "storage", "s3air_saveslots.bin"),
-            os.path.join(s3_appdata, "s3air_saveslots.bin"),
-            os.path.join(game_dir, "storage", "s3air_saveslots.bin") if game_dir else "",
-        ]
-        slots_file = next((p for p in slot_candidates if p and os.path.exists(p)), None)
-
-        if slots_file:
-            with open(slots_file, "rb") as f:
-                s_data = f.read()
-            # В OXY.PDATA имя "SRAM_Saveslots" записано БЕЗ нулевого байта, сразу за ним идут 4 байта длины (0x50 = 80 байт = 8 слотов по 10 байт!)
-            sec_tag = b"SRAM_Saveslots"
-            sec_pos = s_data.find(sec_tag)
-            if sec_pos != -1:
-                data_off = sec_pos + len(sec_tag) + 4
-                if data_off + 80 <= len(s_data):
-                    char_map = {0: "Соник и Тейлз", 1: "Соник", 2: "Тейлз", 3: "Наклз", 4: "Наклз и Тейлз"}
-                    for s_idx in range(8):
-                        slot_chunk = s_data[data_off + s_idx * 10 : data_off + (s_idx + 1) * 10]
-                        b0, b1, b2, b3, b4, b5, b6, b7, b8, b9 = struct.unpack("<10B", slot_chunk)
-                        # По твоему дампу:
-                        # Слот 1 (активный): 00 2a 01 00 00 02 00 00 03 00 (b0 != 0x80)
-                        # Слоты 2..8 (пустые): 80 00 00 00 00 00 00 00 03 00 (b0 == 0x80 — пустой слот, b8 == 03 жизни)
-                        if (b0 & 0x80) == 0:
-                            char_id = b2 if b2 <= 4 else (b2 >> 4)
-                            zone_num = b3 + 1
-                            lives_val = b8 if 0 < b8 <= 99 else 3
-                            # Изумруды в S3&K SRAM лежат в b6..b7 (по 2 бита на каждый из 7 изумрудов) или счётчиком в b5
-                            em_word = (b6 << 8) | b7
-                            mask_em = sum(1 for k in range(8) if ((em_word >> (k * 2)) & 3) > 0)
-                            em_final = min(7, max(mask_em, b5 if b5 <= 7 else 0))
-                            max_emeralds = max(max_emeralds, em_final)
-                            hero_name = char_map.get(char_id, f"Герой #{char_id}")
-                            stage_info = "Игра пройдена (CLEAR)" if (b0 & 0x03) >= 1 else f"Зона #{zone_num}"
-                            slots.append({
-                                "name": f"Слот сохранения #{s_idx + 1} ({hero_name})",
-                                "info": f"{stage_info} • Жизней: {lives_val} • Изумрудов: {em_final}/7"
-                            })
-
-        p_candidates = [
-            os.path.join(s3_appdata, "storage", "s3air_achievements.bin"),
-            os.path.join(s3_appdata, "playerprogress.bin"),
-            os.path.join(game_dir, "storage", "s3air_achievements.bin") if game_dir else "",
-            os.path.join(game_dir, "savedata", "playerprogress.bin") if game_dir else "",
-        ]
-        p_file = next((p for p in p_candidates if p and os.path.exists(p)), None)
-        if p_file:
-            with open(p_file, "rb") as f:
-                raw_bytes = f.read()
-    elif game_dir and os.path.isdir(game_dir):
-        save_path = next((os.path.join(r, fn) for r, _, fs in os.walk(game_dir) for fn in fs if fn.lower() in ("sdata.bin", "savedata.bin")), None)
-        if save_path and os.path.exists(save_path):
-            with open(save_path, "rb") as f:
-                raw_bytes = f.read()
-
-            # Строгая структура RSDKv3/v4 SData.bin:
-            # 4 базовых слота лежат СТРОГО по смещению 0..127 байт, каждый слот = 32 байта (8 x int32):
-            # [0]=character, [1]=lives, [2]=score, [3]=scoreBonus, [4]=stageListPos, [5]=emeraldsBitmask, [6]=continues, [7]=extra
-            char_names = {0: "Соник", 1: "Тейлз", 2: "Эми", 3: "Наклз"} if gid == "soniccd" else {0: "Соник", 1: "Тейлз", 2: "Наклз", 3: "Соник и Тейлз", 4: "Наклз и Тейлз", 5: "Эми"}
-            regions = [(4000, 8, 1)] if gid in ("sonic1", "sonic2") else [(0, 4, 1), (4000, 4, 5)]
-            for base_off, count, start_num in regions:
-                for i in range(count):
-                    pos = base_off + i * 32
-                    if len(raw_bytes) < pos + 32:
-                        break
-                    ints = struct.unpack("<8I", raw_bytes[pos : pos + 32])
-                    if gid == "soniccd":
-                        char_id, lives, score, stage_pos, em_bits, _, _, _ = ints
-                    else:
-                        char_id, lives, score, _, stage_pos, em_bits, _, _ = ints
-                    if 0 < lives <= 99 and 0 < stage_pos <= 255:
-                        em_count = bin(em_bits & 0x7F).count("1")
-                        max_emeralds = max(max_emeralds, em_count)
-                        c_name = char_names.get(char_id, f"Герой #{char_id}")
-                        stage_str = "Игра пройдена (CLEAR)" if stage_pos >= 0x80 else f"Этап #{stage_pos}"
-                        slots.append({
-                            "name": f"Слот сохранения #{start_num + i} ({c_name})",
-                            "info": f"{stage_str} • Жизней: {lives} • Очки: {score} • Изумрудов: {em_count}/7"
-                        })
-
-    return {
-        "supported": True, "title": "Прогресс и сохранения",
-        "emeralds": max_emeralds, "maxEmeralds": 7,
-        "slots": slots if slots else [{"name": "Активных сохранений нет", "info": "Все слоты сохранения пусты (0 Изумрудов)"}],
-        "achievements": extract_native_achievements(gid, game_dir, raw_bytes)
-    }
 
 class LauncherHandler(SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
@@ -1090,7 +196,7 @@ class LauncherHandler(SimpleHTTPRequestHandler):
 
     def translate_path(self, path):
         clean_p = urllib.parse.urlparse(path).path
-        if clean_p in ('/', '/index.html', '/style.css', '/script.js'):
+        if clean_p in ('/', '/index.html', '/style.css', '/script.js', '/ThemeStudio.html', '/icon.ico') or clean_p.startswith(('/js/', '/locales/')):
             rel = 'index.html' if clean_p == '/' else clean_p.lstrip('/')
             cand = os.path.join(RESOURCE_DIR, rel)
             if os.path.exists(cand):
@@ -1173,6 +279,26 @@ class LauncherHandler(SimpleHTTPRequestHandler):
                 save_config(cfg)
             self.send_json({"ok": True})
 
+        elif parsed.path == '/api/gb/open_url':
+            url = payload.get("url", "")
+            if url.startswith("https://gamebanana.com"):
+                webbrowser.open(url)
+            self.send_json({"ok": True})
+
+        elif parsed.path == '/api/gb/set_game_id':
+            cfg = load_config()
+            gid = payload.get("gameId")
+            gb_id = int(payload.get("gbId") or 0)
+            if gid and gb_id > 0:
+                cfg.setdefault("gbIds", {})[gid] = gb_id
+                save_config(cfg)
+            self.send_json({"ok": True})
+
+        elif parsed.path == '/api/mods/reorder':
+            cfg = load_config()
+            ok = save_mods_state(payload.get("gameId"), payload.get("mods", []), cfg)
+            self.send_json({"ok": ok})
+
         elif parsed.path == '/api/mods/toggle':
             cfg = load_config()
             ok = toggle_game_mod(payload.get("gameId"), payload.get("modId"), payload.get("enabled"), cfg)
@@ -1230,7 +356,7 @@ class LauncherHandler(SimpleHTTPRequestHandler):
                 mod_folder_name = os.path.splitext(fname)[0]
                 with zipfile.ZipFile(tmp_zip, 'r') as z:
                     names = z.namelist()
-                    has_root_ini = any(n.lower() in ("mod.ini", "mod.json") for n in names)
+                    has_root_ini = (gid != "srb2") and any(n.lower() in ("mod.ini", "mod.json") for n in names)
                     target_dir = os.path.join(mods_dir, mod_folder_name) if has_root_ini else mods_dir
                     z.extractall(target_dir)
                 os.remove(tmp_zip)
@@ -1283,6 +409,45 @@ class LauncherHandler(SimpleHTTPRequestHandler):
                         pass
                 save_config(cfg)
             self.send_json({"ok": True})
+
+        elif parsed.path == '/api/emulators/add':
+            name = payload.get("name", "").strip()
+            args_tpl = payload.get("args", '"{rom}"').strip() or '"{rom}"'
+            exe_p = open_native_dialog(filetypes=[('Emulator EXE', '*.exe')])
+            if name and exe_p and os.path.exists(exe_p):
+                cfg = load_config()
+                eid = f"emu_{int(time.time())}"
+                cfg.setdefault("emulators", []).append({"id": eid, "name": name, "path": exe_p, "args": args_tpl})
+                save_config(cfg)
+                self.send_json({"ok": True})
+            else:
+                self.send_json({"ok": False})
+
+        elif parsed.path == '/api/emulators/delete':
+            eid = payload.get("emuId")
+            cfg = load_config()
+            cfg["emulators"] = [e for e in cfg.get("emulators", []) if e.get("id") != eid]
+            save_config(cfg)
+            self.send_json({"ok": True})
+
+        elif parsed.path == '/api/games/add_rom':
+            emu_id = payload.get("emuId", "")
+            name = payload.get("name", "").strip()
+            color = payload.get("color", "#8B5CF6")
+            tag = payload.get("tag", "EMULATOR ROM").strip() or "EMULATOR ROM"
+            rom_p = open_native_dialog(filetypes=[
+                ('ROM / ISO', '*.bin *.md *.gen *.smd *.iso *.chd *.gdi *.cdi *.rvz *.gcm *.wbfs *.gba *.nds *.nes *.sfc *.smc *.cue *.zip *.7z'),
+                ('All Files', '*.*')
+            ])
+            if emu_id and name and rom_p and os.path.exists(rom_p):
+                cfg = load_config()
+                gid = f"rom_{int(time.time())}"
+                cfg["gamesOrder"].append({"id": gid, "name": name, "color": color, "tag": tag, "custom": True, "emuId": emu_id})
+                cfg["paths"][gid] = rom_p
+                save_config(cfg)
+                self.send_json({"ok": True})
+            else:
+                self.send_json({"ok": False})
 
         elif parsed.path == '/api/games/add':
             cfg = load_config()
@@ -1405,7 +570,12 @@ class LauncherHandler(SimpleHTTPRequestHandler):
             for g in games_order:
                 gid = g["id"]
                 p = paths.get(gid, "")
-                exists = bool(p and os.path.exists(p))
+                emu_id = g.get("emuId")
+                if emu_id:
+                    emu_obj = next((e for e in cfg.get("emulators", []) if e["id"] == emu_id), None)
+                    exists = bool(p and os.path.exists(p) and emu_obj and os.path.exists(emu_obj.get("path", "")))
+                else:
+                    exists = bool(p and os.path.exists(p))
                 result.append({
                     **g,
                     "path": p,
@@ -1423,6 +593,7 @@ class LauncherHandler(SimpleHTTPRequestHandler):
             self.send_json({
                 "games": result,
                 "smmPath": cfg.get("smmPath", ""),
+                "emulators": cfg.get("emulators", []),
                 "mainLogo": find_asset(IMAGES_DIR, "/images", "mainlogo", img_exts),
                 "objects": find_floating_objects(),
                 "sounds": scan_all_sounds(),
@@ -1460,6 +631,24 @@ class LauncherHandler(SimpleHTTPRequestHandler):
                 self.send_json({"ok": True})
             else:
                 self.send_json({"ok": False, "error": "Папка не найдена"})
+
+        elif parsed.path == '/api/open_studio':
+            cand1 = os.path.join(BASE_DIR, 'ThemeStudio.html')
+            cand2 = os.path.join(RESOURCE_DIR, 'ThemeStudio.html')
+            target = cand1 if os.path.isfile(cand1) else (cand2 if os.path.isfile(cand2) else '')
+            if target:
+                os.startfile(target)
+                self.send_json({'ok': True})
+            else:
+                self.send_json({'ok': False, 'error': 'Файл ThemeStudio.html не найден рядом с лаунчером'})
+
+        elif parsed.path == '/api/sgdb/open':
+            q = urllib.parse.quote(get_query_param(query, 'q').strip() or 'Sonic')
+            host = "www." + "steamgriddb" + ".com"
+            path = chr(47) + "search" + chr(47) + "grids"
+            target_url = urllib.parse.urlunsplit(('https', host, path, 'term=' + q, ''))
+            webbrowser.open(target_url)
+            self.send_json({"ok": True})
 
         elif parsed.path == '/api/locales':
             langs = {}
@@ -1499,6 +688,13 @@ class LauncherHandler(SimpleHTTPRequestHandler):
                     window_instance.destroy()
                 os._exit(0)
             threading.Timer(0.15, shutdown).start()
+
+        elif parsed.path == '/api/games/autoscan':
+            cfg = load_config()
+            found = auto_scan_games(cfg)
+            if found:
+                save_config(cfg)
+            self.send_json({"ok": True, "count": len(found), "found": found})
 
         elif parsed.path == '/api/select':
             game_id = get_query_param(query, 'id')
@@ -1663,10 +859,36 @@ class LauncherHandler(SimpleHTTPRequestHandler):
                     pass
             self.send_json({"design": None})
 
+        elif parsed.path == '/api/mods/thumb':
+            gid = get_query_param(query, 'id')
+            mname = os.path.basename(get_query_param(query, 'mod'))
+            mdir = resolve_mods_dir(gid, load_config())
+            mfull = os.path.join(mdir, mname) if mdir else ""
+            for fn in ("preview.png", "thumbnail.png", "icon.png", "preview.jpg", "thumbnail.jpg"):
+                p = os.path.join(mfull, fn)
+                if os.path.isfile(p):
+                    self.send_response(200)
+                    self.send_header('Content-Type', 'image/jpeg' if fn.endswith('.jpg') else 'image/png')
+                    self.end_headers()
+                    with open(p, 'rb') as imgf:
+                        self.wfile.write(imgf.read())
+                    return
+            self.send_error(404)
+
+        elif parsed.path == '/api/gb/details':
+            mid = get_query_param(query, 'mod')
+            self.send_json(fetch_gb_mod_details(mid))
+
+        elif parsed.path == '/api/gb/browse':
+            gid = get_query_param(query, 'id')
+            q = get_query_param(query, 'q')
+            page = int(get_query_param(query, 'page') or '1')
+            self.send_json(fetch_gb_mods(gid, load_config(), q, page))
+
         elif parsed.path == '/api/mods/list':
             game_id = get_query_param(query, 'id')
             cfg = load_config()
-            self.send_json(get_game_mods(game_id, cfg))
+            m_res = get_game_mods(game_id, cfg); m_res['localVer'] = detect_local_game_version(game_id, cfg); self.send_json(m_res)
 
         elif parsed.path == '/api/mods/select_dir':
             game_id = get_query_param(query, 'id')
@@ -1725,11 +947,34 @@ class LauncherHandler(SimpleHTTPRequestHandler):
         elif parsed.path == '/api/launch':
             game_id = get_query_param(query, 'id')
             cfg = load_config()
-            exe_path = cfg["paths"].get(game_id)
-            if exe_path and os.path.exists(exe_path) and active_game_id is None:
+            target_path = cfg["paths"].get(game_id)
+            g_meta = next((g for g in cfg.get("gamesOrder", []) if g.get("id") == game_id), {})
+            emu_id = g_meta.get("emuId")
+
+            if target_path and os.path.exists(target_path) and active_game_id is None:
                 raw_args = cfg.get("launchArgs", {}).get(game_id, "").strip()
-                cmd_list = [exe_path] + (raw_args.split() if raw_args else [])
-                proc = subprocess.Popen(cmd_list, cwd=os.path.dirname(exe_path))
+                extra_args = shlex.split(raw_args, posix=False) if raw_args else []
+                if emu_id:
+                    emu = next((e for e in cfg.get("emulators", []) if e.get("id") == emu_id), None)
+                    if not emu or not os.path.exists(emu.get("path", "")):
+                        self.send_json({"ok": False})
+                        return
+                    exe_path = emu["path"]
+                    tpl = emu.get("args", '"{rom}"')
+                    filled = tpl.replace("{rom}", target_path) if "{rom}" in tpl else f'{tpl} "{target_path}"'
+                    cmd_list = [exe_path] + [a.strip('"') for a in shlex.split(filled, posix=False)] + extra_args
+                    work_dir = os.path.dirname(exe_path)
+                else:
+                    exe_path = target_path
+                    cmd_list = [exe_path] + extra_args
+                    if game_id == "srb2":
+                        mdir = resolve_mods_dir("srb2", cfg)
+                        act_files = [os.path.join(mdir, m["id"].replace("/", os.sep)) for m in cfg.get("srb2Mods", []) if m.get("enabled")]
+                        act_files = [p for p in act_files if os.path.isfile(p)]
+                        if act_files:
+                            cmd_list += ["-file"] + act_files
+                    work_dir = os.path.dirname(exe_path)
+                proc = subprocess.Popen(cmd_list, cwd=work_dir)
                 design = cfg.get("design", {})
                 minimize = design.get("minimizeOnLaunch", True)
                 to_tray = design.get("minimizeToTray", False)

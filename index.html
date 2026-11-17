@@ -46,6 +46,8 @@
     <div id="bg-soniccd" class="bg-layer"></div>
     <div id="bg-sonic3" class="bg-layer"></div>
     <div id="bg-origins" class="bg-layer"></div>
+    <div id="bg-mania" class="bg-layer"></div>
+    <div id="bg-srb2" class="bg-layer"></div>
 
     <div id="backdrop-image-layer"></div>
     <video id="backdrop-video-layer" autoplay loop muted playsinline></video>
@@ -94,9 +96,10 @@
     <!-- 1. Модальное окно путей к играм -->
     <div id="settings-modal" class="modal-backdrop">
         <div class="modal-box wide-box">
-            <div class="modal-title">⚙ Управление играми и порядок</div>
+            <div class="modal-title">Управление играми и порядок</div>
             <div class="smm-bar" style="justify-content:center;">
-                <button class="btn-small btn-accent" onclick="addCustomGame()">➕ Добавить свою игру в лаунчер</button>
+                <button class="btn-small btn-accent" onclick="addCustomGame()">+ Добавить свою игру в лаунчер</button>
+                <button class="btn-small" onclick="addNewEmulator()">+ Подключить эмулятор</button>
             </div>
             <div class="smm-bar">
                 <span>Sonic Mod Manager:</span>
@@ -104,6 +107,7 @@
                 <button class="btn-small" onclick="selectSmmExe()">Обзор</button>
                 <button id="btn-launch-smm" class="btn-small btn-accent hidden" onclick="launchSmm()">▶ Запустить SMM</button>
             </div>
+            <div id="sgl-emu-container"></div>
             <div id="settings-list"></div>
             <button class="close-modal-btn" onclick="closeSettings()">Готово</button>
         </div>
@@ -112,19 +116,20 @@
     <!-- 2. Модальное окно менеджера модов -->
     <div id="mods-modal" class="modal-backdrop">
         <div class="modal-box wide-box">
-            <div class="modal-title" id="mods-modal-title">🧩 Моды</div>
+            <div class="modal-title" id="mods-modal-title">Моды</div>
             <div class="mods-toolbar">
                 <span id="mods-dir-label" class="mods-path-text">Папка не найдена</span>
                 <div class="mods-dir-btns">
                     <button class="btn-small" onclick="selectCustomModsDir()">Обзор...</button>
-                    <button class="btn-small" onclick="openModsFolder()">📂 Папка</button>
+                    <button class="btn-small" onclick="checkModsConflicts()">Проверить конфликты</button>
+                    <button class="btn-small" onclick="openModsFolder()">Папка</button>
                 </div>
             </div>
             <div class="presets-bar">
                 <select id="preset-select" class="custom-select" style="flex-grow:1;"></select>
                 <button class="btn-small btn-accent" onclick="applyModPreset()">Применить</button>
-                <button class="btn-small" onclick="saveModPreset()">💾 Сохранить как...</button>
-                <button class="btn-small btn-clear" onclick="deleteModPreset()">🗑</button>
+                <button class="btn-small" onclick="saveModPreset()">Сохранить как...</button>
+                <button class="btn-small btn-clear" onclick="deleteModPreset()" title="Удалить пресет">Удалить</button>
             </div>
             <div id="mods-list-container" class="mods-list"></div>
             <button class="close-modal-btn" onclick="closeModsModal()">Закрыть</button>
@@ -134,7 +139,7 @@
     <!-- 3. Модальное окно твиков -->
     <div id="tweaks-modal" class="modal-backdrop">
         <div class="modal-box">
-            <div class="modal-title" id="tweaks-modal-title">⚡ Настройки движка игры</div>
+            <div class="modal-title" id="tweaks-modal-title">Настройки движка игры</div>
             <div id="tweaks-list" class="tweaks-container"></div>
             <div class="modal-actions">
                 <button class="btn-reset" onclick="closeTweaksModal()">Отмена</button>
@@ -146,10 +151,10 @@
     <!-- 4. Модальное окно скриншотов -->
     <div id="shots-modal" class="modal-backdrop">
         <div class="modal-box wide-box">
-            <div class="modal-title" id="shots-modal-title">📸 Скриншоты</div>
+            <div class="modal-title" id="shots-modal-title">Скриншоты</div>
             <div class="mods-toolbar">
                 <span id="shots-dir-label" class="mods-path-text">Папка скриншотов</span>
-                <button class="btn-small" onclick="openShotsFolder()">📂 Открыть папку</button>
+                <button class="btn-small" onclick="openShotsFolder()">Открыть папку</button>
             </div>
             <div id="shots-grid" class="shots-grid"></div>
             <button class="close-modal-btn" onclick="closeShotsModal()">Закрыть</button>
@@ -162,16 +167,16 @@
     <!-- 5. Модальное окно кастомизации с 4 вкладками -->
     <div id="custom-modal" class="modal-backdrop">
         <div class="modal-box wide-box">
-            <div class="modal-title">🎨 Кастомизация лаунчера</div>
+            <div class="modal-title">Кастомизация лаунчера</div>
 
             <!-- Панель переключения вкладок -->
             <div class="tabs-bar">
-                <button class="tab-btn active" onclick="switchCustomTab('appearance', this)">🎨 Вид и темы</button>
-                <button class="tab-btn" onclick="switchCustomTab('background', this)">🌌 Фон и объекты</button>
-                <button class="tab-btn" onclick="switchCustomTab('media', this)">🖼 Графика и видео</button>
+                <button class="tab-btn active" onclick="switchCustomTab('appearance', this)">Вид и темы</button>
+                <button class="tab-btn" onclick="switchCustomTab('background', this)">Фон и объекты</button>
+                <button class="tab-btn" onclick="switchCustomTab('media', this)">Графика и видео</button>
                 <button class="tab-btn" onclick="switchCustomTab('buttons', this)">Кнопки и текст</button>
                 <button class="tab-btn" onclick="switchCustomTab('characters', this)">Персонажи</button>
-                <button class="tab-btn" onclick="switchCustomTab('audio', this)">🔊 Звук и система</button>
+                <button class="tab-btn" onclick="switchCustomTab('audio', this)">Звук и система</button>
             </div>
 
             <!-- ВКЛАДКА 1: Вид, шрифты и темы -->
@@ -179,7 +184,7 @@
                 <div class="theme-io-bar">
                     <button class="btn-small btn-accent" onclick="exportThemeFile()">Экспорт .JSON</button>
                 <button class="btn-small btn-accent" style="background:#8b5cf6;" onclick="exportSonicPack()">Упаковать .SONICPACK</button>
-                    <button class="btn-small" onclick="importThemeFile()">📥 Импорт темы</button>
+                    <button class="btn-small" onclick="importThemeFile()">Импорт темы</button>
                 </div>
 
                 <div class="custom-group">
@@ -250,7 +255,7 @@
                     <div class="font-picker-row">
                         <span id="val-customFont" class="font-name-badge">Стандартный</span>
                         <button class="btn-small" onclick="pickCustomFont()">Обзор...</button>
-                        <button class="btn-small btn-clear" onclick="clearCustomFont()">✖</button>
+                        <button class="btn-small btn-clear" onclick="clearCustomFont()">×</button>
                     </div>
                 </div>
 
@@ -312,9 +317,9 @@
                     </div>
                     <div style="display:flex;gap:6px;flex-wrap:wrap;">
                         <button class="btn-small btn-accent" onclick="pickMediaSlot('main', 'mainlogo')">Выбрать главный логотип</button>
-                        <button class="btn-small btn-clear" onclick="deleteMediaSlot('main', 'mainlogo')">✖ Сбросить</button>
-                        <button class="btn-small" onclick="pickMediaSlot('main', 'object')">➕ Добавить летающий объект</button>
-                        <button class="btn-small btn-clear" onclick="deleteMediaSlot('main', 'object_all')">🗑 Очистить объекты</button>
+                        <button class="btn-small btn-clear" onclick="deleteMediaSlot('main', 'mainlogo')">Сбросить</button>
+                        <button class="btn-small" onclick="pickMediaSlot('main', 'object')">+ Добавить летающий объект</button>
+                        <button class="btn-small btn-clear" onclick="deleteMediaSlot('main', 'object_all')">Очистить объекты</button>
                     </div>
                 </div>
                 <div id="media-settings-list"></div>
@@ -388,7 +393,7 @@
 
                 <div class="custom-check-row">
                     <input type="checkbox" id="inp-liteMode" onchange="previewDesign()">
-                    <label for="inp-liteMode" style="color:#4ADE80;">⚡ Режим высокой производительности (для слабых ПК)</label>
+                    <label for="inp-liteMode" style="color:#4ADE80;">Режим высокой производительности (для слабых ПК)</label>
                 </div>
 
                 <div class="custom-subtitle">Настройка звуков и музыки через «Обзор»:</div>
@@ -402,7 +407,17 @@
         </div>
     </div>
 
-    <script src="script.js?v=1794728690"></script>
+        <script src="/js/ui-dialogs.js"></script>
+    <script src="/script.js"></script>
+    <script src="/js/mods-dnd.js"></script>
+    <script src="/js/gamebanana-ui.js"></script>
+    <script src="/js/progress-ui.js"></script>
+    <script src="/js/extras-hud.js"></script>
+    <script src="/js/emulators-ui.js"></script>
+    <script src="/js/onboarding.js"></script>
+    <script src="/js/customizer-plus.js"></script>
+    <script src="/js/gamepad-pro.js"></script>
+    <script src="/js/i18n.js"></script>
 
     <div id="progress-modal" class="modal-backdrop">
         <div class="modal-box">
