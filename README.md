@@ -34,8 +34,8 @@ Disclaimer: This is an unofficial fan-made open-source launcher. Sonic the Hedge
 ### 🚀 Quick Start (EN)
 
 #### Option 1: Portable `.exe` (No Python required)
-1. Download `SonicLauncher.exe` (and `ThemeStudio.html` if needed) from the [**Releases**](../../releases) section.
-2. Place `SonicLauncher.exe` in a dedicated folder and run it.
+1. Download `SGLv1.1.exe` (and `ThemeStudio.html` if needed) from the [**Releases**](../../releases) section.
+2. Place `SGLv1.1.exe` in a dedicated folder and run it.
 3. Click **Games & Paths** to select your game `.exe` files and customize artwork/music via **Launcher Customization**.
 
 #### Option 2: Run from Source
@@ -77,7 +77,7 @@ pyinstaller --noconfirm --clean --onefile --windowed --icon "icon.ico" --name "S
 ### Установка и запуск (RU)
 
 #### Вариант 1: Готовый `.exe` (без установки Python)
-1. Скачайте `SonicLauncher.exe` в разделе [**Releases**](../../releases).
+1. Скачайте `SGLv1.1.exe` в разделе [**Releases**](../../releases).
 2. Положите его в любую удобную папку и запустите.
 3. Нажмите **«Игры и пути»**, чтобы указать `.exe` файлы установленных игр, и настройте обложки, персонажей и музыку под себя в меню кастомизации.
 
