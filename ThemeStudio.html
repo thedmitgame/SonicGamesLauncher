@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
-<title>Sonic Launcher — Theme Studio v2.0</title>
+<title>Launcher — Theme Studio v2.1</title>
 <style>
     * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
     body {
@@ -92,7 +92,7 @@
 <div id="drop-banner">Отпустите .JSON или .SONICPACK файл для загрузки в студию</div>
 
 <header>
-    <div class="brand">SONIC LAUNCHER — THEME STUDIO v2.0</div>
+    <div class="brand">LAUNCHER — THEME STUDIO v2.1</div>
     <div class="top-actions">
         <select id="studio-lang" onchange="setStudioLang(this.value)" style="width:auto;min-width:130px;background:#1a2236;color:#fff;border:1px solid rgba(255,255,255,0.2);border-radius:8px;padding:6px 10px;font-size:12px;font-weight:700;">
             <option value="ru">RU • Русский</option>
@@ -117,9 +117,9 @@
         <div class="card-box">
             <label>Стиль карточек и кнопок:
                 <select id="g-cardStyle" onchange="updateGlobal('cardStyle', this.value)">
-                    <option value="sega">SEGA Dynamic (Скошенные)</option>
+                    <option value="sega">Спортивный (Скошенный)</option>
                     <option value="console">Console HUD (Строгий)</option>
-                    <option value="retro">Mega Drive 16-Bit</option>
+                    <option value="retro">Ретро Пиксель (16-Bit)</option>
                     <option value="neon">Neon Grid</option>
                     <option value="glass">Glassmorphism</option>
                 </select>
@@ -129,13 +129,13 @@
                     <option value="none">Без эффекта (только градиент)</option>
                     <option value="synthwave">Ретро-сетка (Synthwave)</option>
                     <option value="speedlines">Скоростные линии (Speed Lines)</option>
-                    <option value="checker">Шахматка Green Hill</option>
-                    <option value="sparks">Парящие искры Изумрудов</option>
+                    <option value="checker">Движущаяся шахматка</option>
+                    <option value="sparks">Золотые искры</option>
                 </select>
             </label>
             <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px;">
-                <button type="button" class="btn sec" style="padding:5px;" onclick="applyStudioPreset('sega')">SEGA</button>
-                <button type="button" class="btn sec" style="padding:5px;" onclick="applyStudioPreset('mania')">Mania</button>
+                <button type="button" class="btn sec" style="padding:5px;" onclick="applyStudioPreset('sega')">Спорт</button>
+                <button type="button" class="btn sec" style="padding:5px;" onclick="applyStudioPreset('mania')">Поп-Арт</button>
                 <button type="button" class="btn sec" style="padding:5px;" onclick="applyStudioPreset('neon')">Neon</button>
                 <button type="button" class="btn sec" style="padding:5px;" onclick="applyStudioPreset('console')">Console</button>
             </div>
@@ -143,7 +143,7 @@
                 <select id="g-carouselMode" onchange="updateGlobal('carouselMode', this.value)">
                     <option value="coverflow">3D-Круг (Объёмное кольцо)</option>
                     <option value="arc">Дуга / Колесо</option>
-                    <option value="row">Ряд (Switch)</option>
+                    <option value="row">Горизонтальный ряд</option>
                 </select>
             </label>
             <label>Ширина 3D-круга (<span id="lbl-rx">100</span>%):
@@ -197,7 +197,8 @@
 
         <div class="hud-el pill-hud" id="hud-m5bar" data-hud="m5bar" style="left:66%;top:5%;">Рулетка • Игра • Сейвы</div>
         <div class="hud-el pill-hud" id="hud-lang" data-hud="lang" style="left:7%;top:5%;">RU • Русский ▾</div>
-        <div class="hud-el pill-hud" id="hud-m4btn" data-hud="m4btn" style="left:89%;top:5%;">Атмосфера</div>
+        <div class="hud-el pill-hud" id="hud-m4btn" data-hud="jukebox" style="left:82%;top:16%;padding:5px 12px;border-radius:20px;background:rgba(12,18,32,0.85);border:1px solid rgba(255,255,255,0.2);font-size:11px;">Музыкальный плеер</div>
+        <div class="hud-el" data-hud="m4btn" style="left:89%;top:5%;">Атмосфера</div>
     </div>
 </main>
 
@@ -627,8 +628,8 @@ const STUDIO_EN = {
     "Без эффекта (только градиент)": "None (Gradient Only)",
     "Ретро-сетка (Synthwave)": "Retro Grid (Synthwave)",
     "Скоростные линии (Speed Lines)": "Speed Lines",
-    "Шахматка Green Hill": "Green Hill Checkerboard",
-    "Парящие искры Изумрудов": "Floating Emerald Sparks",
+    "Движущаяся шахматка": "Moving Checkerboardboard",
+    "Золотые искры": "Floating Emerald Sparks",
     "Игры и пути": "Games & Paths",
     "Моды": "Mods",
     "Настройки игры": "Game Tweaks",
@@ -648,14 +649,14 @@ const STUDIO_EN = {
     "Элементы интерфейса (Слои)": "UI Elements (Layers)",
     "Глобальный стиль темы": "Global Theme Style",
     "Стиль карточек и кнопок:": "Card & Button Style:",
-    "SEGA Dynamic (Скошенные)": "SEGA Dynamic (Skewed)",
+    "Спортивный (Скошенный)": "Dynamic (Skewed)",
     "Console HUD (Строгий)": "Console HUD (Clean)",
     "Neon Grid": "Neon Grid",
     "Glassmorphism": "Glassmorphism",
     "Режим карусели:": "Carousel Mode:",
     "3D-Круг (Объёмное кольцо)": "3D Circle (Ring)",
     "Дуга / Колесо": "Arc / Wheel",
-    "Ряд (Switch)": "Row (Switch)",
+    "Горизонтальный ряд": "Horizontal Row",
     "Анимация персонажей:": "Character Animation:",
     "Снизу вверх (плавно)": "Slide Up (Smooth)",
     "Сбоку (с краёв экрана)": "Slide Side (Edges)",
@@ -721,6 +722,402 @@ function setStudioLang(lang) {
     }
     if (typeof syncInspector === 'function' && selectedHud) syncInspector();
 }
+</script>
+<script>
+/* === STUDIO v2.1 ADDON: NEW SHADERS, SCREEN FX & EXPORT FIELDS === */
+(function() {
+    function mk(tag, cls, css, txt) {
+        const e = document.createElement(tag);
+        if (cls) e.className = cls;
+        if (css) e.style.cssText = css;
+        if (txt !== undefined && txt !== null) e.textContent = txt;
+        return e;
+    }
+
+    function injectStudioFxStyles() {
+        if (document.getElementById('st-fx-css')) return;
+        const st = mk('style', '', '');
+        st.id = 'st-fx-css';
+        const rules = new Array(
+            '#st-screen-fx{position:absolute;inset:0;pointer-events:none;z-index:4;opacity:0.45;}',
+            '#st-screen-fx.fx-none{display:none;}',
+            '#st-screen-fx.fx-crt{background:linear-gradient(rgba(18,16,16,0) 50%,rgba(0,0,0,0.42) 50%),radial-gradient(circle at center,transparent 58%,rgba(0,0,0,0.72) 100%);background-size:100% 4px,100% 100%;}',
+            '#st-screen-fx.fx-halftone{background-image:radial-gradient(rgba(255,215,0,0.28) 1.6px,transparent 1.6px);background-size:14px 14px;}',
+            '#st-screen-fx.fx-cybergrid{background-image:linear-gradient(rgba(56,189,248,0.14) 1px,transparent 1px),linear-gradient(90deg,rgba(56,189,248,0.14) 1px,transparent 1px);background-size:32px 32px;}',
+            '#st-screen-fx.fx-vignette{background:radial-gradient(circle at center,transparent 45%,rgba(0,0,0,0.88) 100%);}',
+            '.st-guide-line{position:absolute;background:#FFD700;pointer-events:none;z-index:990;box-shadow:0 0 8px #FFD700;display:none;}',
+            '#st-guide-v{top:0;bottom:0;width:1px;}',
+            '#st-guide-h{left:0;right:0;height:1px;}',
+            '.st-history-bar{display:flex;gap:6px;margin-bottom:8px;}',
+            '.st-history-btn{flex:1;padding:5px 8px;border-radius:7px;border:1px solid rgba(255,255,255,0.16);background:rgba(255,255,255,0.06);color:#fff;font-size:11px;font-weight:700;cursor:pointer;}',
+            '.st-history-btn:hover{border-color:#FFD700;color:#FFD700;}'
+        );
+        st.textContent = rules.join('\n');
+        document.head.appendChild(st);
+    }
+
+    function findCanvasStage() {
+        const el = document.querySelector('[data-hud="header"]') || document.querySelector('[data-hud]');
+        return el ? el.parentElement : null;
+    }
+
+    function setupStageOverlays() {
+        injectStudioFxStyles();
+        const stage = findCanvasStage();
+        if (!stage || document.getElementById('st-screen-fx')) return;
+
+        const fx = mk('div', 'fx-none', '');
+        fx.id = 'st-screen-fx';
+        const gv = mk('div', 'st-guide-line', '');
+        gv.id = 'st-guide-v';
+        const gh = mk('div', 'st-guide-line', '');
+        gh.id = 'st-guide-h';
+        stage.append(fx, gv, gh);
+    }
+
+    function injectExtraSidebarControls() {
+        const selects = Array.from(document.getElementsByTagName('select'));
+        const shaderSel = selects.find(s => Array.from(s.options).some(o => o.value === 'synthwave'));
+        if (shaderSel) {
+            const curVals = Array.from(shaderSel.options).map(o => o.value);
+            const extras = new Array(
+                { v: 'mania_geo', t: 'Поп-арт геометрия' },
+                { v: 'starfield', t: 'Звёздный полёт (Варп)' },
+                { v: 'cyber_glitch', t: 'Цифровой глитч' }
+            );
+            extras.forEach(it => {
+                if (!curVals.includes(it.v)) {
+                    const o = mk('option', '', '', it.t);
+                    o.value = it.v;
+                    shaderSel.appendChild(o);
+                }
+            });
+        }
+
+        if (!shaderSel || document.getElementById('st-inp-screenFx')) return;
+        const box = mk('div', '', 'margin-top:8px;padding:8px;border-radius:8px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);display:flex;flex-direction:column;gap:6px;');
+
+        const addSelectRow = (labelTxt, id, opts) => {
+            const wrap = mk('div', '', 'display:flex;flex-direction:column;gap:3px;font-size:11px;');
+            wrap.appendChild(mk('span', '', 'opacity:0.8;', labelTxt));
+            const sel = mk('select', shaderSel.className || '', 'width:100%;padding:5px;border-radius:6px;background:#0f172a;color:#fff;border:1px solid rgba(255,255,255,0.16);font-size:11px;');
+            sel.id = id;
+            opts.forEach(it => {
+                const o = mk('option', '', '', it.t);
+                o.value = it.v;
+                sel.appendChild(o);
+            });
+            wrap.appendChild(sel);
+            box.appendChild(wrap);
+            return sel;
+        };
+
+        const fxSel = addSelectRow('Текстурный фильтр (Screen FX):', 'st-inp-screenFx', new Array(
+            { v: 'none', t: 'Без фильтра' },
+            { v: 'crt', t: 'ЭЛТ-сканлайны (CRT)' },
+            { v: 'halftone', t: 'Точечный растр (Halftone)' },
+            { v: 'cybergrid', t: 'Цифровая сетка' },
+            { v: 'vignette', t: 'Кино-виньетка' }
+        ));
+
+        const aspSel = addSelectRow('Формат обложек:', 'st-inp-cardAspect', new Array(
+            { v: 'poster', t: 'Постер (2:3)' },
+            { v: 'square', t: 'Квадратный бокс (1:1)' },
+            { v: 'wide', t: 'Широкий баннер (16:9)' }
+        ));
+
+        const lncSel = addSelectRow('Переход запуска:', 'st-inp-launchAnim', new Array(
+            { v: 'titlecard', t: 'Аркадные ленты' },
+            { v: 'warpring', t: 'Кольцо-портал' },
+            { v: 'crtoff', t: 'Выключение ЭЛТ' },
+            { v: 'flash', t: 'Белая вспышка' }
+        ));
+
+        shaderSel.after(box);
+
+        const syncStudioState = () => {
+            const fxLayer = document.getElementById('st-screen-fx');
+            if (fxLayer) fxLayer.className = 'fx-' + fxSel.value;
+            if (typeof themeState !== 'undefined' && themeState) {
+                themeState.screenFx = fxSel.value;
+                themeState.cardAspect = aspSel.value;
+                themeState.launchAnim = lncSel.value;
+            }
+        };
+        fxSel.onchange = syncStudioState;
+        aspSel.onchange = syncStudioState;
+        lncSel.onchange = syncStudioState;
+    }
+
+    window._initStudioV21Part1 = function() {
+        setupStageOverlays();
+        injectExtraSidebarControls();
+    };
+})();
+</script>
+<script>
+/* === STUDIO v2.1 PART 2: SNAP GUIDES & UNDO / REDO (CTRL+Z / CTRL+Y) === */
+(function() {
+    const undoStack = new Array();
+    const redoStack = new Array();
+    let isRestoring = false;
+
+    function captureSnapshot() {
+        const snap = {};
+        document.querySelectorAll('[data-hud]').forEach(el => {
+            const id = el.getAttribute('data-hud');
+            snap[id] = {
+                left: el.style.left,
+                top: el.style.top,
+                transform: el.style.transform,
+                display: el.style.display
+            };
+        });
+        let rawJson = '';
+        if (typeof themeState !== 'undefined' && themeState) {
+            rawJson = JSON.stringify(themeState);
+        }
+        return JSON.stringify({ dom: snap, state: rawJson });
+    }
+
+    function pushHistory() {
+        if (isRestoring) return;
+        const cur = captureSnapshot();
+        if (undoStack.length > 0 && undoStack.at(-1) === cur) return;
+        undoStack.push(cur);
+        if (undoStack.length > 45) undoStack.shift();
+        redoStack.length = 0;
+    }
+
+    function applySnapshot(snapStr) {
+        if (!snapStr) return;
+        isRestoring = true;
+        try {
+            const parsed = JSON.parse(snapStr);
+            if (parsed.state && typeof themeState !== 'undefined' && themeState) {
+                const stObj = JSON.parse(parsed.state);
+                Object.assign(themeState, stObj);
+            }
+            const domMap = parsed.dom || {};
+            document.querySelectorAll('[data-hud]').forEach(el => {
+                const id = el.getAttribute('data-hud');
+                const rec = domMap[id];
+                if (rec) {
+                    el.style.left = rec.left;
+                    el.style.top = rec.top;
+                    if (rec.transform !== undefined) el.style.transform = rec.transform;
+                    if (rec.display !== undefined) el.style.display = rec.display;
+                }
+            });
+            if (typeof renderAll === 'function') renderAll();
+        } catch (_) {}
+        isRestoring = false;
+    }
+
+    window.studioUndo = function() {
+        if (undoStack.length <= 1) return;
+        const cur = undoStack.pop();
+        redoStack.push(cur);
+        applySnapshot(undoStack.at(-1));
+    };
+
+    window.studioRedo = function() {
+        if (redoStack.length === 0) return;
+        const next = redoStack.pop();
+        undoStack.push(next);
+        applySnapshot(next);
+    };
+
+    function injectUndoRedoBar() {
+        if (document.getElementById('st-undo-bar')) return;
+        const inspectorHdr = Array.from(document.querySelectorAll('h3, h4, .panel-title, div'))
+            .find(el => (el.textContent || '').trim() === 'Инспектор элемента' || (el.textContent || '').trim() === 'Element Inspector');
+        if (!inspectorHdr) return;
+
+        const bar = document.createElement('div');
+        bar.id = 'st-undo-bar';
+        bar.className = 'st-history-bar';
+
+        const bUndo = document.createElement('button');
+        bUndo.type = 'button';
+        bUndo.className = 'st-history-btn';
+        bUndo.textContent = '↶ Отменить (Ctrl+Z)';
+        bUndo.onclick = window.studioUndo;
+
+        const bRedo = document.createElement('button');
+        bRedo.type = 'button';
+        bRedo.className = 'st-history-btn';
+        bRedo.textContent = '↷ Повторить (Ctrl+Y)';
+        bRedo.onclick = window.studioRedo;
+
+        bar.append(bUndo, bRedo);
+        inspectorHdr.after(bar);
+    }
+
+    // Умные магнитные направляющие при перетаскивании [data-hud]
+    let draggedHud = null;
+
+    document.addEventListener('pointerdown', (e) => {
+        const el = e.target.closest('[data-hud]');
+        if (el) {
+            pushHistory();
+            draggedHud = el;
+        }
+    }, true);
+
+    window.addEventListener('pointermove', () => {
+        if (!draggedHud) return;
+        const gv = document.getElementById('st-guide-v');
+        const gh = document.getElementById('st-guide-h');
+        if (!gv || !gh) return;
+
+        const curX = parseFloat(draggedHud.style.left);
+        const curY = parseFloat(draggedHud.style.top);
+        if (isNaN(curX) || isNaN(curY)) return;
+
+        let snapX = null;
+        let snapY = null;
+
+        if (Math.abs(curX - 50) < 1.1) snapX = 50;
+        if (Math.abs(curY - 50) < 1.1) snapY = 50;
+
+        document.querySelectorAll('[data-hud]').forEach(other => {
+            if (other === draggedHud || other.style.display === 'none') return;
+            const ox = parseFloat(other.style.left);
+            const oy = parseFloat(other.style.top);
+            if (!isNaN(ox) && snapX === null && Math.abs(curX - ox) < 0.9) snapX = ox;
+            if (!isNaN(oy) && snapY === null && Math.abs(curY - oy) < 0.9) snapY = oy;
+        });
+
+        if (snapX !== null) {
+            draggedHud.style.left = snapX.toFixed(1) + '%';
+            gv.style.left = snapX.toFixed(1) + '%';
+            gv.style.display = 'block';
+            if (typeof themeState !== 'undefined' && themeState?.customLayout) {
+                const id = draggedHud.getAttribute('data-hud');
+                if (themeState.customLayout[id]) themeState.customLayout[id].x = +snapX.toFixed(1);
+            }
+        } else {
+            gv.style.display = 'none';
+        }
+
+        if (snapY !== null) {
+            draggedHud.style.top = snapY.toFixed(1) + '%';
+            gh.style.top = snapY.toFixed(1) + '%';
+            gh.style.display = 'block';
+            if (typeof themeState !== 'undefined' && themeState?.customLayout) {
+                const id = draggedHud.getAttribute('data-hud');
+                if (themeState.customLayout[id]) themeState.customLayout[id].y = +snapY.toFixed(1);
+            }
+        } else {
+            gh.style.display = 'none';
+        }
+    }, { passive: true });
+
+    window.addEventListener('pointerup', () => {
+        if (draggedHud) {
+            draggedHud = null;
+            const gv = document.getElementById('st-guide-v');
+            const gh = document.getElementById('st-guide-h');
+            if (gv) gv.style.display = 'none';
+            if (gh) gh.style.display = 'none';
+            pushHistory();
+        }
+    });
+
+    window.addEventListener('keydown', (e) => {
+        if ((e.ctrlKey || e.metaKey) && e.code === 'KeyZ' && !e.shiftKey) {
+            e.preventDefault();
+            window.studioUndo();
+        } else if ((e.ctrlKey || e.metaKey) && (e.code === 'KeyY' || (e.code === 'KeyZ' && e.shiftKey))) {
+            e.preventDefault();
+            window.studioRedo();
+        }
+    });
+
+    const bootAll = () => {
+        if (typeof window._initStudioV21Part1 === 'function') window._initStudioV21Part1();
+        injectUndoRedoBar();
+        setTimeout(pushHistory, 300);
+    };
+    if (document.readyState === 'loading') window.addEventListener('DOMContentLoaded', bootAll);
+    else bootAll();
+})();
+</script>
+<script>
+/* === STUDIO v2.1 BILINGUAL SYNC (RU <-> EN) === */
+(function() {
+    const PAIRS = new Array(
+        new Array('Текстурный фильтр (Screen FX):', 'Screen Texture Filter (Screen FX):'),
+        new Array('Без фильтра', 'No Filter'),
+        new Array('ЭЛТ-сканлайны (CRT)', 'CRT Scanlines'),
+        new Array('Точечный растр (Halftone)', 'Halftone Dots'),
+        new Array('Цифровая сетка', 'Digital Grid'),
+        new Array('Кино-виньетка', 'Cinema Vignette'),
+        new Array('Формат обложек:', 'Cover Aspect:'),
+        new Array('Постер (2:3)', 'Poster (2:3)'),
+        new Array('Квадратный бокс (1:1)', 'Square Box (1:1)'),
+        new Array('Широкий баннер (16:9)', 'Wide Banner (16:9)'),
+        new Array('Переход запуска:', 'Launch Transition:'),
+        new Array('Аркадные ленты', 'Arcade Ribbons'),
+        new Array('Кольцо-портал', 'Warp Ring'),
+        new Array('Выключение ЭЛТ', 'CRT Turn-Off'),
+        new Array('Белая вспышка', 'White Flash'),
+        new Array('Поп-арт геометрия', 'Pop-Art Geometry'),
+        new Array('Звёздный полёт (Варп)', 'Star Warp Flight'),
+        new Array('Цифровой глитч', 'Digital Glitch'),
+        new Array('Спорт', 'Dynamic'),
+        new Array('Поп-Арт', 'Pop-Art'),
+        new Array('↶ Отменить (Ctrl+Z)', '↶ Undo (Ctrl+Z)'),
+        new Array('↷ Повторить (Ctrl+Y)', '↷ Redo (Ctrl+Y)'),
+        new Array('Музыкальный плеер', 'Music Player'),
+        new Array('SEGA Dynamic (Skewed)', 'Dynamic (Skewed)')
+    );
+
+    function detectStudioLang() {
+        const selects = Array.from(document.getElementsByTagName('select'));
+        const langSel = selects.find(s => Array.from(s.options).some(o => o.value === 'en' || (o.textContent || '').includes('English')));
+        if (langSel) {
+            const v = (langSel.value || '').toLowerCase();
+            if (v === 'en' || v.includes('en')) return 'en';
+            if (v === 'ru' || v.includes('ru')) return 'ru';
+        }
+        const bodyTxt = document.body ? document.body.innerText : '';
+        return bodyTxt.includes('ELEMENT INSPECTOR') ? 'en' : 'ru';
+    }
+
+    function applyStudioTranslations() {
+        const lang = detectStudioLang();
+        const fromIdx = (lang === 'en') ? 0 : 1;
+        const toIdx = (lang === 'en') ? 1 : 0;
+
+        const map = new Map();
+        PAIRS.forEach(p => map.set(p.at(fromIdx), p.at(toIdx)));
+
+        const nodes = document.querySelectorAll('span, option, button, label, div');
+        nodes.forEach(el => {
+            if (el.children.length > 0) return;
+            const raw = (el.textContent || '').trim();
+            if (map.has(raw)) {
+                el.textContent = map.get(raw);
+            }
+        });
+    }
+
+    function bindLangWatcher() {
+        applyStudioTranslations();
+        document.addEventListener('change', (e) => {
+            if (e.target && e.target.tagName === 'SELECT') {
+                setTimeout(applyStudioTranslations, 20);
+            }
+        });
+        setTimeout(applyStudioTranslations, 150);
+        setTimeout(applyStudioTranslations, 500);
+    }
+
+    if (document.readyState === 'loading') window.addEventListener('DOMContentLoaded', bindLangWatcher);
+    else bindLangWatcher();
+})();
 </script>
 </body>
 </html>

@@ -10,7 +10,7 @@
 
     <div id="intro-curtain"></div>
     <div id="global-drop-zone" style="position:fixed;inset:0;background:rgba(30,144,255,0.28);backdrop-filter:blur(6px);border:4px dashed #1E90FF;display:none;align-items:center;justify-content:center;font-size:20px;font-weight:800;color:#fff;z-index:995;pointer-events:none;text-align:center;padding:20px;">
-        Отпустите .ZIP (мод для текущей игры) или .SONICPACK / .JSON (тему)
+        Отпустите архив мода (.ZIP/.7Z), картинку/видео для игры или тему (.SONICPACK/.JSON)
     </div>
     <!-- Плавающая панель визуального редактора расположения элементов (F2) -->
         <div id="hud-editor-bar">
@@ -102,10 +102,10 @@
                 <button class="btn-small" onclick="addNewEmulator()">+ Подключить эмулятор</button>
             </div>
             <div class="smm-bar">
-                <span>Sonic Mod Manager:</span>
+                <span>HedgeModManager:</span>
                 <span id="smm-path-label" class="setting-file">Не указан</span>
                 <button class="btn-small" onclick="selectSmmExe()">Обзор</button>
-                <button id="btn-launch-smm" class="btn-small btn-accent hidden" onclick="launchSmm()">▶ Запустить SMM</button>
+                <button id="btn-launch-smm" class="btn-small btn-accent hidden" onclick="launchSmm()">▶ Запустить HMM</button>
             </div>
             <div id="sgl-emu-container"></div>
             <div id="settings-list"></div>
@@ -280,7 +280,7 @@
                         <option value="none">Без эффекта (только градиент)</option>
                         <option value="synthwave">Ретро-сетка (Synthwave)</option>
                         <option value="speedlines">Скоростные линии (Speed Lines)</option>
-                        <option value="checker">Шахматка Green Hill</option>
+                        <option value="checker">Движущаяся шахматка</option>
                         <option value="sparks">Парящие искры Изумрудов</option>
                     </select>
                 </div>
@@ -396,6 +396,16 @@
                     <label for="inp-liteMode" style="color:#4ADE80;">Режим высокой производительности (для слабых ПК)</label>
                 </div>
 
+                <div class="custom-check-row">
+                    <input type="checkbox" id="inp-discordRpc" checked onchange="previewDesign()">
+                    <label for="inp-discordRpc">Показывать статус активности в Discord (Rich Presence)</label>
+                </div>
+
+                <div class="custom-check-row">
+                    <input type="checkbox" id="inp-showJukebox" checked onchange="previewDesign()">
+                    <label for="inp-showJukebox">Показывать музыкальный мини-плеер (OST Jukebox)</label>
+                </div>
+
                 <div class="custom-subtitle">Настройка звуков и музыки через «Обзор»:</div>
                 <div id="sounds-manager-list"></div>
             </div>
@@ -407,17 +417,29 @@
         </div>
     </div>
 
-        <script src="/js/ui-dialogs.js"></script>
-    <script src="/script.js"></script>
-    <script src="/js/mods-dnd.js"></script>
-    <script src="/js/gamebanana-ui.js"></script>
-    <script src="/js/progress-ui.js"></script>
-    <script src="/js/extras-hud.js"></script>
-    <script src="/js/emulators-ui.js"></script>
-    <script src="/js/onboarding.js"></script>
-    <script src="/js/customizer-plus.js"></script>
-    <script src="/js/gamepad-pro.js"></script>
-    <script src="/js/i18n.js"></script>
+        <script src="/js/ui-dialogs.js?v=250"></script>
+    <script src="/script.js?v=260"></script>
+    <script src="/js/mods-dnd.js?v=250"></script>
+    <script src="/js/gamebanana-ui.js?v=250"></script>
+    <script src="/js/progress-ui.js?v=250"></script>
+    <script src="/js/extras-hud.js?v=250"></script>
+    <script src="/js/emulators-ui.js?v=250"></script>
+    <script src="/js/onboarding.js?v=250"></script>
+    <script src="/js/customizer-plus.js?v=250"></script>
+    <script src="/js/gamepad-pro.js?v=250"></script>
+    <script src="/js/card-menu.js?v=250"></script>
+    <script src="/js/hud-editor.js?v=250"></script>
+    <script src="/js/jukebox.js?v=250"></script>
+    <script src="/js/profile-ui.js?v=250"></script>
+        <script src="/js/visual-fx.js?v=250"></script>
+    <script src="/js/themes-gallery.js?v=250"></script>
+    <script src="/js/arcade-fx.js?v=250"></script>
+    <script src="/js/media-drop.js?v=250"></script>
+    <script src="/js/per-game-style.js?v=250"></script>
+    <script src="/js/library-tools.js?v=250"></script>
+    <script src="/js/hedgemod-ui.js?v=250"></script>
+    <script src="/js/codes-ui.js?v=250"></script>
+    <script src="/js/i18n.js?v=250"></script>
 
     <div id="progress-modal" class="modal-backdrop">
         <div class="modal-box">
