@@ -1,3 +1,5 @@
+import re
+from core.backups import list_save_backups, create_save_backup, restore_save_backup, delete_save_backup, BACKUPS_DIR
 import webbrowser
 import shlex
 import base64, zipfile, webview, json, os, subprocess
@@ -12,10 +14,13 @@ from core.config import (
     find_asset, scan_all_sounds, find_floating_objects
 )
 from core.mods import resolve_mods_dir, get_game_mods, toggle_game_mod, save_mods_state
+from core.codes import get_game_codes, toggle_game_code
 from core.tweaks import get_game_tweaks, save_game_tweaks
 from core.saves import parse_game_progress
 from core.scanner import auto_scan_games
+from core.mod_managers import MANAGER_TYPES, load_mm_paths, save_mm_paths, launch_manager_exe, find_manager_exe, resolve_mods_folder, list_ini_mods, toggle_ini_mod
 from core.gamebanana import fetch_gb_mods, fetch_gb_mod_details, detect_local_game_version
+from core.discord_rpc import discord_rpc
 
 try:
     import pystray
@@ -91,6 +96,7 @@ def build_tray_image(icon_url):
     return img
 
 def stop_tray_cleanly():
+    discord_rpc.close_pipe()
     global tray_icon
     if tray_icon:
         try:
@@ -132,6 +138,14 @@ def monitor_game_session(game_id, proc, minimize, to_tray):
     global active_game_id
     active_game_id = game_id
     start_ts = time.time()
+    try:
+        cfg_now = load_config()
+        g_info = next((g for g in cfg_now.get("gamesOrder", []) if g.get("id") == game_id), {})
+        discord_rpc.update_playing(
+            g_info.get("name", game_id), g_info.get("tag", ""), game_id, start_ts, cfg_now.get("lang", "ru")
+        )
+    except Exception:
+        pass
     if window_instance:
         try:
             if to_tray:
@@ -151,6 +165,12 @@ def monitor_game_session(game_id, proc, minimize, to_tray):
         save_config(cfg)
 
     active_game_id = None
+    try:
+        cfg_end = load_config()
+        g_info = next((g for g in cfg_end.get("gamesOrder", []) if g.get("id") == game_id), {})
+        discord_rpc.update_menu(g_info.get("name", ""), game_id, cfg_end.get("lang", "ru"))
+    except Exception:
+        pass
     if window_instance:
         try:
             if to_tray or minimize:
@@ -229,6 +249,333 @@ class LauncherHandler(SimpleHTTPRequestHandler):
         body = self.rfile.read(content_length).decode('utf-8') if content_length else "{}"
         payload = json.loads(body)
 
+        if parsed.path == '/api/screenshots/delete':
+            gid = sanitize_filename(payload.get("gameId", ""))
+            fname = os.path.basename(payload.get("fileName", ""))
+            target = os.path.join(SCREENSHOTS_DIR, gid, fname)
+            if gid and fname and os.path.isfile(target):
+                try:
+                    os.remove(target)
+                    self.send_json({"ok": True})
+                    return
+                except Exception as e:
+                    self.send_json({"ok": False, "error": str(e)})
+                    return
+            self.send_json({"ok": False, "error": "Файл не найден"})
+            return
+
+        if parsed.path == '/api/mods/disable_all':
+            gid = payload.get("gameId")
+            cfg = load_config()
+            cur = get_game_mods(gid, cfg).get("mods", [])
+            for m in cur:
+                m["enabled"] = False
+            ok = save_mods_state(gid, cur, cfg)
+            self.send_json({"ok": ok})
+            return
+
+        if parsed.path == '/api/mods/delete':
+            gid = payload.get("gameId")
+            mod_id = payload.get("modId", "")
+            cfg = load_config()
+            mods_dir = resolve_mods_dir(gid, cfg)
+            if not mods_dir or not mod_id:
+                self.send_json({"ok": False, "error": "Папка не найдена"})
+                return
+            norm_root = os.path.abspath(mods_dir)
+            target_p = os.path.abspath(os.path.join(mods_dir, mod_id.replace("/", os.sep)))
+            if not target_p.startswith(norm_root + os.sep) or not os.path.exists(target_p):
+                self.send_json({"ok": False, "error": "Недопустимый путь мода"})
+                return
+            try:
+                cur = [m for m in get_game_mods(gid, cfg).get("mods", []) if m["id"].lower() != mod_id.lower()]
+                save_mods_state(gid, cur, cfg)
+                if os.path.isdir(target_p):
+                    shutil.rmtree(target_p)
+                else:
+                    os.remove(target_p)
+                self.send_json({"ok": True})
+            except Exception as e:
+                self.send_json({"ok": False, "error": str(e)})
+            return
+
+        if parsed.path == '/api/backups/create':
+            self.send_json(create_save_backup(payload.get('gameId', ''), load_config(), payload.get('note', '')))
+            return
+        if parsed.path == '/api/backups/restore':
+            self.send_json(restore_save_backup(payload.get('gameId', ''), payload.get('file', ''), load_config()))
+            return
+        if parsed.path == '/api/backups/delete':
+            self.send_json(delete_save_backup(payload.get('gameId', ''), payload.get('file', '')))
+            return
+
+        if parsed.path == '/api/emulators/browse_exe':
+            p = open_native_dialog(filetypes=[('Emulator EXE', '*.exe')])
+            self.send_json({"ok": bool(p), "path": p.replace("\\", "/") if p else ""})
+            return
+
+        if parsed.path == '/api/emulators/save':
+            name = payload.get("name", "").strip()
+            exe_p = payload.get("path", "").strip()
+            args_tpl = payload.get("args", '"{rom}"').strip() or '"{rom}"'
+            if name and exe_p and os.path.exists(exe_p):
+                cfg = load_config()
+                eid = f"emu_{int(time.time() * 1000)}"
+                cfg.setdefault("emulators", []).append({"id": eid, "name": name, "path": exe_p, "args": args_tpl})
+                save_config(cfg)
+                self.send_json({"ok": True})
+            else:
+                self.send_json({"ok": False})
+            return
+
+        if parsed.path == '/api/emulators/browse_rom':
+            rp = open_native_dialog(filetypes=[
+                ('ROM / ISO', '*.bin *.md *.gen *.smd *.iso *.chd *.gdi *.cdi *.rvz *.gcm *.wbfs *.gba *.nds *.nes *.sfc *.smc *.cue *.cso *.pbp *.xex'),
+                ('All Files', '*.*')
+            ])
+            self.send_json({"ok": bool(rp), "path": rp.replace("\\", "/") if rp else ""})
+            return
+
+        if parsed.path == '/api/emulators/add_rom_direct':
+            emu_id = payload.get("emuId", "")
+            name = payload.get("name", "").strip()
+            rom_p = payload.get("romPath", "").strip()
+            if emu_id and name and rom_p and os.path.exists(rom_p):
+                cfg = load_config()
+                emu_info = next((e for e in cfg.get("emulators", []) if e.get("id") == emu_id), None)
+                emu_label = emu_info.get("name", "EMULATOR").upper() if emu_info else "EMULATOR"
+                gid = f"rom_{int(time.time() * 1000)}"
+                cfg.setdefault("gamesOrder", []).append({
+                    "id": gid, "name": name, "color": "#8B5CF6",
+                    "tag": f"ROM • {emu_label}", "custom": True, "emuId": emu_id
+                })
+                cfg.setdefault("paths", {})[gid] = rom_p
+                save_config(cfg)
+                self.send_json({"ok": True})
+            else:
+                self.send_json({"ok": False})
+            return
+
+        if parsed.path == '/api/emulators/scan_folder':
+            folder = open_native_dialog(is_dir=True)
+            if not folder or not os.path.isdir(folder):
+                self.send_json({"ok": False, "items": []})
+                return
+            cfg = load_config()
+            existing_paths = {os.path.normcase(os.path.abspath(p)) for p in cfg.get("paths", {}).values() if p}
+            found = []
+            cue_Bases = set()
+            all_files = sorted(os.listdir(folder))
+            for fn in all_files:
+                if fn.lower().endswith((".cue", ".gdi")):
+                    cue_Bases.add(os.path.splitext(fn)[0].lower())
+            for fn in all_files:
+                fp = os.path.join(folder, fn)
+                if not os.path.isfile(fp):
+                    continue
+                stem, ext = os.path.splitext(fn)
+                ext_l = ext.lower()
+                if ext_l == ".bin" and stem.lower() not in cue_Bases:
+                    valid = True
+                else:
+                    valid = ext_l in ROM_VALID_EXTS
+                if not valid:
+                    continue
+                if os.path.normcase(os.path.abspath(fp)) in existing_paths:
+                    continue
+                found.append({
+                    "path": fp.replace("\\", "/"),
+                    "name": clean_rom_title(fn),
+                    "ext": ext_l.lstrip(".").upper()
+                })
+            self.send_json({"ok": True, "folder": folder.replace("\\", "/"), "items": found})
+            return
+
+        if parsed.path == '/api/emulators/batch_add_roms':
+            emu_id = payload.get("emuId", "")
+            items = payload.get("items", [])
+            cfg = load_config()
+            emu_info = next((e for e in cfg.get("emulators", []) if e.get("id") == emu_id), None)
+            emu_label = emu_info.get("name", "EMULATOR").upper() if emu_info else "EMULATOR"
+            added = 0
+            ts_base = int(time.time() * 1000)
+            for idx, it in enumerate(items):
+                r_path = it.get("path", "").strip()
+                r_name = it.get("name", "").strip()
+                if not r_path or not r_name:
+                    continue
+                gid = f"rom_{ts_base}_{idx}"
+                cfg.setdefault("gamesOrder", []).append({
+                    "id": gid,
+                    "name": r_name,
+                    "tag": f"ROM • {emu_label}",
+                    "custom": True,
+                    "emuId": emu_id
+                })
+                cfg.setdefault("paths", {})[gid] = r_path
+                added += 1
+            save_config(cfg)
+            self.send_json({"ok": True, "added": added})
+            return
+
+        if parsed.path == '/api/jukebox/add_track':
+            fp = open_native_dialog(filetypes=[('Audio Files', '*.mp3 *.ogg *.wav *.flac *.m4a')])
+            if fp and os.path.isfile(fp):
+                music_dir = os.path.join(SOUNDS_DIR, "music")
+                os.makedirs(music_dir, exist_ok=True)
+                dest = os.path.join(music_dir, os.path.basename(fp))
+                if os.path.abspath(fp) != os.path.abspath(dest):
+                    shutil.copy2(fp, dest)
+                self.send_json({"ok": True, "name": os.path.basename(fp)})
+            else:
+                self.send_json({"ok": False})
+            return
+
+        if parsed.path == '/api/themes/apply_local':
+            fname = os.path.basename(payload.get('file', ''))
+            fp = os.path.join(THEMES_DIR, fname)
+            if not fname or not os.path.isfile(fp):
+                self.send_json({'ok': False, 'error': 'Файл темы не найден'})
+                return
+            try:
+                cfg = load_config()
+                if fname.lower().endswith('.json'):
+                    with open(fp, 'r', encoding='utf-8') as tf:
+                        imported = json.load(tf)
+                    merged = {**DEFAULT_DESIGN, **imported}
+                    cfg['design'] = merged
+                    save_config(cfg)
+                    self.send_json({'ok': True, 'design': merged, 'isPack': False})
+                    return
+                else:
+                    new_design = None
+                    with zipfile.ZipFile(fp, 'r') as zf:
+                        for member in zf.namelist():
+                            if member == 'design.json':
+                                new_design = json.loads(zf.read(member).decode('utf-8'))
+                            elif member.startswith(('images/', 'sounds/', 'fonts/')) and not member.endswith('/'):
+                                parts = member.split('/', 1)
+                                p_head = parts.pop(0)
+                                p_tail = parts.pop(0)
+                                dest_dir = IMAGES_DIR if p_head == 'images' else (SOUNDS_DIR if p_head == 'sounds' else FONTS_DIR)
+                                os.makedirs(dest_dir, exist_ok=True)
+                                with open(os.path.join(dest_dir, os.path.basename(p_tail)), 'wb') as out_f:
+                                    out_f.write(zf.read(member))
+                    if new_design:
+                        merged = {**DEFAULT_DESIGN, **new_design}
+                        cfg['design'] = merged
+                        save_config(cfg)
+                    self.send_json({'ok': True, 'design': cfg.get('design'), 'isPack': True})
+                    return
+            except Exception as e:
+                self.send_json({'ok': False, 'error': str(e)})
+                return
+
+        if parsed.path == '/api/themes/delete_local':
+            fname = os.path.basename(payload.get('file', ''))
+            fp = os.path.join(THEMES_DIR, fname)
+            if fname and os.path.isfile(fp):
+                os.remove(fp)
+                self.send_json({'ok': True})
+            else:
+                self.send_json({'ok': False})
+            return
+
+        if parsed.path == '/api/media/drop_install':
+            gid = sanitize_filename(payload.get('gameId', ''))
+            slot = payload.get('slot', 'cover')
+            fname = payload.get('fileName', 'asset.png')
+            b64_data = payload.get('dataBase64', '')
+            if not b64_data or (slot != 'mainlogo' and not gid):
+                self.send_json({'ok': False, 'error': 'Неверные параметры файла'})
+                return
+            try:
+                _, ext = os.path.splitext(fname)
+                ext = ext.lower()
+                raw_bytes = base64.b64decode(b64_data.split(',').pop())
+                os.makedirs(IMAGES_DIR, exist_ok=True)
+                stamp = int(time.time())
+
+                if slot in ('char_left', 'char_right'):
+                    side = 'left' if slot == 'char_left' else 'right'
+                    dest_name = f"{gid}_{side}_{stamp}{ext}"
+                    with open(os.path.join(IMAGES_DIR, dest_name), 'wb') as out_f:
+                        out_f.write(raw_bytes)
+                    url = f"/images/{dest_name}"
+                    cfg = load_config()
+                    chars = cfg.setdefault('design', {}).setdefault('characters', {}).setdefault(gid, {})
+                    cur_slot = chars.get(side, {'height': 65, 'offset': 2, 'offsetY': 0, 'flip': False})
+                    cur_slot['url'] = url
+                    cur_slot['name'] = os.path.basename(fname)
+                    chars[side] = cur_slot
+                    save_config(cfg)
+                    self.send_json({'ok': True, 'url': url, 'slot': slot, 'name': os.path.basename(fname)})
+                    return
+
+                is_vid = (slot == 'video')
+                prefix = 'mainlogo' if slot == 'mainlogo' else (gid if slot in ('cover', 'video') else f"{gid}{slot}")
+                clean_exts = ('.mp4', '.webm', '.mkv') if is_vid else ('.gif', '.png', '.jpg', '.jpeg', '.webp')
+                for e in clean_exts:
+                    old_f = os.path.join(IMAGES_DIR, f"{prefix}{e}")
+                    if os.path.isfile(old_f):
+                        try:
+                            os.remove(old_f)
+                        except Exception:
+                            pass
+
+                dest_name = f"{prefix}{ext}"
+                with open(os.path.join(IMAGES_DIR, dest_name), 'wb') as out_f:
+                    out_f.write(raw_bytes)
+                self.send_json({'ok': True, 'url': f"/images/{dest_name}?t={stamp}", 'slot': slot})
+                return
+            except Exception as e:
+                self.send_json({'ok': False, 'error': str(e)})
+                return
+
+        if parsed.path == '/api/games/toggle_fav':
+            gid = str(payload.get('gameId', '')).strip()
+            favs = read_fav_list()
+            if gid in favs:
+                favs = [x for x in favs if x != gid]
+                now_fav = False
+            else:
+                if gid:
+                    favs.append(gid)
+                now_fav = True
+            saved = write_fav_list(favs)
+            self.send_json({'ok': True, 'favorite': now_fav, 'favorites': saved})
+            return
+
+        if parsed.path == '/api/games/save_note':
+            gid = payload.get('gameId', '')
+            text = str(payload.get('note', ''))
+            if gid:
+                cfg = load_config()
+                cfg.setdefault('gameNotes', {})[gid] = text
+                save_config(cfg)
+            self.send_json({'ok': True})
+            return
+
+        if parsed.path == '/api/mod_managers/select':
+            m_type = payload.get('type', 'hmm')
+            info = MANAGER_TYPES.get(m_type, MANAGER_TYPES['hmm'])
+            fp = open_native_dialog(filetypes=[(info['title'], '*.exe'), ('EXE', '*.exe')])
+            if fp and os.path.isfile(fp):
+                cur = load_mm_paths(load_config())
+                cur[m_type] = fp.replace('\\', '/')
+                saved = save_mm_paths(cur)
+                self.send_json({'ok': True, 'path': saved.get(m_type, ''), 'managers': saved})
+            else:
+                self.send_json({'ok': False})
+            return
+
+        if parsed.path == '/api/mod_managers/launch':
+            m_type = payload.get('type', 'hmm')
+            cur = load_mm_paths(load_config())
+            ok = launch_manager_exe(cur.get(m_type, ''))
+            self.send_json({'ok': ok})
+            return
+
         if parsed.path == '/api/intro/browse':
             fp = open_native_dialog(filetypes=[('Медиа заставки', '*.mp4 *.webm *.gif *.png *.jpg *.jpeg *.webp'), ('Все файлы', '*.*')])
             if fp and os.path.exists(fp):
@@ -257,12 +604,22 @@ class LauncherHandler(SimpleHTTPRequestHandler):
             self.send_json({'ok': True})
             return
 
+        if parsed.path == '/api/discord/status':
+            if active_game_id is None:
+                cfg = load_config()
+                discord_rpc.update_menu(
+                    payload.get("gameName", ""), payload.get("gameId", ""), cfg.get("lang", "ru")
+                )
+            self.send_json({"ok": True})
+            return
+
         if parsed.path == '/api/design':
             cfg = load_config()
             cfg["design"] = payload
             save_config(cfg)
             register_screenshot_hotkey(payload.get("screenshotKey", "f6"))
             start_tray_icon(payload.get("appIconUrl", ""))
+            discord_rpc.configure(payload.get("discordRpc", True), payload.get("discordClientId", ""))
             self.send_json({"ok": True})
 
         elif parsed.path == '/api/order':
@@ -299,53 +656,46 @@ class LauncherHandler(SimpleHTTPRequestHandler):
             ok = save_mods_state(payload.get("gameId"), payload.get("mods", []), cfg)
             self.send_json({"ok": ok})
 
+        elif parsed.path == '/api/codes/toggle':
+            ok = toggle_game_code(payload.get('gameId', ''), payload.get('codeId', ''), bool(payload.get('enabled')), load_config())
+            self.send_json({'ok': ok})
+
         elif parsed.path == '/api/mods/toggle':
             cfg = load_config()
-            ok = toggle_game_mod(payload.get("gameId"), payload.get("modId"), payload.get("enabled"), cfg)
-            self.send_json({"ok": ok})
+            toggle_game_mod(payload.get('gameId', ''), payload.get('modId', ''), bool(payload.get('enabled')), cfg)
+            self.send_json({'ok': True})
 
         elif parsed.path == '/api/mods/save_preset':
-            cfg = load_config()
-            gid = payload.get("gameId")
-            name = payload.get("name", "").strip()
-            if gid and name:
-                presets = cfg.setdefault("modPresets", {}).setdefault(gid, {})
-                presets[name] = payload.get("enabledIds", [])
+            gid, pname = payload.get('gameId', ''), payload.get('name', '').strip()
+            if gid and pname:
+                cfg = load_config()
+                cfg.setdefault('modPresets', {}).setdefault(gid, {})[pname] = payload.get('enabledIds', [])
                 save_config(cfg)
-            self.send_json({"ok": True})
+            self.send_json({'ok': True})
 
         elif parsed.path == '/api/mods/apply_preset':
+            gid, pname = payload.get('gameId', ''), payload.get('name', '')
             cfg = load_config()
-            gid = payload.get("gameId")
-            name = payload.get("name", "")
-            enabled_set = set(x.lower() for x in cfg.get("modPresets", {}).get(gid, {}).get(name, []))
-            mods_info = get_game_mods(gid, cfg)
-            for m in mods_info.get("mods", []):
-                toggle_game_mod(gid, m["id"], m["id"].lower() in enabled_set, cfg)
-            self.send_json({"ok": True})
+            eids = {str(x).lower() for x in cfg.get('modPresets', {}).get(gid, {}).get(pname, [])}
+            cur = get_game_mods(gid, cfg).get('mods', [])
+            for m in cur:
+                m['enabled'] = m.get('id', '').lower() in eids
+            save_mods_state(gid, cur, cfg)
+            self.send_json({'ok': True})
 
         elif parsed.path == '/api/mods/delete_preset':
             cfg = load_config()
-            gid = payload.get("gameId")
-            name = payload.get("name", "")
-            if gid in cfg.get("modPresets", {}) and name in cfg["modPresets"][gid]:
-                del cfg["modPresets"][gid][name]
-                save_config(cfg)
-            self.send_json({"ok": True})
-
-        elif parsed.path == '/api/tweaks':
-            cfg = load_config()
-            ok = save_game_tweaks(payload.get("gameId"), payload.get("tweaks", {}), cfg)
-            self.send_json({"ok": ok})
+            cfg.get('modPresets', {}).get(payload.get('gameId', ''), {}).pop(payload.get('name', ''), None)
+            save_config(cfg)
+            self.send_json({'ok': True})
 
         elif parsed.path == '/api/mods/install_zip':
-            gid = payload.get("gameId")
-            b64_data = payload.get("zipBase64", "")
-            fname = payload.get("fileName", "mod.zip")
-            cfg = load_config()
-            mods_dir = resolve_mods_dir(gid, cfg)
-            if not mods_dir or not b64_data:
-                self.send_json({"ok": False, "error": "Папка модов не найдена"})
+            gid = payload.get('gameId', '')
+            fname = payload.get('fileName', 'mod.zip')
+            b64_data = payload.get('zipBase64', '')
+            mods_dir = resolve_mods_dir(gid, load_config())
+            if not mods_dir:
+                self.send_json({'ok': False, 'error': 'Папка модов не выбрана'})
                 return
             os.makedirs(mods_dir, exist_ok=True)
             try:
@@ -353,12 +703,39 @@ class LauncherHandler(SimpleHTTPRequestHandler):
                 tmp_zip = os.path.join(mods_dir, "_temp_install.zip")
                 with open(tmp_zip, "wb") as zf:
                     zf.write(raw)
-                mod_folder_name = os.path.splitext(fname)[0]
-                with zipfile.ZipFile(tmp_zip, 'r') as z:
-                    names = z.namelist()
-                    has_root_ini = (gid != "srb2") and any(n.lower() in ("mod.ini", "mod.json") for n in names)
-                    target_dir = os.path.join(mods_dir, mod_folder_name) if has_root_ini else mods_dir
-                    z.extractall(target_dir)
+                mod_folder_name = sanitize_filename(os.path.splitext(fname)[0]) or "InstalledMod"
+                ext_low = os.path.splitext(fname)[1].lower()
+                if ext_low == ".zip":
+                    with zipfile.ZipFile(tmp_zip, 'r') as z:
+                        names = z.namelist()
+                        has_root_ini = (gid != "srb2") and any(os.path.basename(n).lower() in ("mod.ini", "mod.json") and "/" not in n.strip("/") for n in names)
+                        target_dir = os.path.join(mods_dir, mod_folder_name) if has_root_ini else mods_dir
+                        os.makedirs(target_dir, exist_ok=True)
+                        z.extractall(target_dir)
+                else:
+                    stage_dir = os.path.join(mods_dir, f"_stage_{int(time.time())}")
+                    os.makedirs(stage_dir, exist_ok=True)
+                    r = subprocess.run(
+                        ["tar.exe", "-xf", tmp_zip, "-C", stage_dir],
+                        capture_output=True, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0)
+                    )
+                    if r.returncode != 0:
+                        shutil.rmtree(stage_dir, ignore_errors=True)
+                        os.remove(tmp_zip)
+                        self.send_json({"ok": False, "error": "Не удалось распаковать архив (используйте .ZIP или обновите Windows tar)"})
+                        return
+                    entries = os.listdir(stage_dir)
+                    has_root_ini = (gid != "srb2") and any(e.lower() in ("mod.ini", "mod.json") for e in entries)
+                    dest_base = os.path.join(mods_dir, mod_folder_name) if has_root_ini else mods_dir
+                    os.makedirs(dest_base, exist_ok=True)
+                    for e in entries:
+                        src_p = os.path.join(stage_dir, e)
+                        dst_p = os.path.join(dest_base, e)
+                        if os.path.exists(dst_p):
+                            if os.path.isdir(dst_p): shutil.rmtree(dst_p)
+                            else: os.remove(dst_p)
+                        shutil.move(src_p, dst_p)
+                    shutil.rmtree(stage_dir, ignore_errors=True)
                 os.remove(tmp_zip)
                 self.send_json({"ok": True})
             except Exception as e:
@@ -583,6 +960,8 @@ class LauncherHandler(SimpleHTTPRequestHandler):
                     "exists": exists,
                     "playtime": playtime.get(gid, 0),
                     "running": active_game_id == gid,
+                    "favorite": gid in read_fav_list(),
+                    "note": cfg.get("gameNotes", {}).get(gid, ""),
                     "cover": find_asset(IMAGES_DIR, "/images", gid, img_exts),
                     "logo": find_asset(IMAGES_DIR, "/images", f"{gid}logo", img_exts),
                     "bg": find_asset(IMAGES_DIR, "/images", f"{gid}bg", img_exts),
@@ -620,6 +999,10 @@ class LauncherHandler(SimpleHTTPRequestHandler):
                 if gid == "sonic3":
                     cand = os.path.join(os.environ.get("APPDATA", ""), "Sonic3AIR")
                     target_dir = cand if os.path.isdir(cand) else game_dir
+                elif gid == "mania":
+                    from core.saves_extra import find_mania_savedata
+                    mp = find_mania_savedata(game_dir)
+                    target_dir = os.path.dirname(mp) if mp else game_dir
                 elif gid == "origins":
                     cand = os.path.join(os.environ.get("APPDATA", ""), "SEGA", "SonicOrigins", "steam")
                     target_dir = cand if os.path.isdir(cand) else game_dir
@@ -707,8 +1090,33 @@ class LauncherHandler(SimpleHTTPRequestHandler):
             else:
                 self.send_json({"path": None})
 
+        elif parsed.path == '/api/hmm/autoscan':
+            cfg = load_config()
+            found = find_hedgemodmanager_exe(cfg)
+            if found:
+                cfg['smmPath'] = found
+                save_config(cfg)
+            self.send_json({'ok': bool(found), 'smmPath': found})
+            return
+
+        elif parsed.path == '/api/mod_managers/status':
+            self.send_json({'managers': load_mm_paths(load_config())})
+            return
+
+        elif parsed.path == '/api/mod_managers/autoscan':
+            cfg = load_config()
+            cur = load_mm_paths(cfg)
+            for k in ('hmm', 'samm', 'mml'):
+                if not cur.get(k):
+                    fp = find_manager_exe(k, cfg)
+                    if fp:
+                        cur[k] = fp
+            saved = save_mm_paths(cur)
+            self.send_json({'ok': True, 'managers': saved})
+            return
+
         elif parsed.path == '/api/select_smm':
-            file_path = open_native_dialog(filetypes=[('Sonic Mod Manager', '*.exe')])
+            file_path = open_native_dialog(filetypes=[('HedgeModManager', '*.exe')])
             if file_path and os.path.exists(file_path):
                 cfg = load_config()
                 cfg["smmPath"] = file_path
@@ -885,34 +1293,184 @@ class LauncherHandler(SimpleHTTPRequestHandler):
             page = int(get_query_param(query, 'page') or '1')
             self.send_json(fetch_gb_mods(gid, load_config(), q, page))
 
+        elif parsed.path == '/api/codes/list':
+            gid = get_query_param(query, 'id')
+            self.send_json(get_game_codes(gid, load_config()))
+            return
+
         elif parsed.path == '/api/mods/list':
-            game_id = get_query_param(query, 'id')
-            cfg = load_config()
-            m_res = get_game_mods(game_id, cfg); m_res['localVer'] = detect_local_game_version(game_id, cfg); self.send_json(m_res)
+            gid = get_query_param(query, 'id')
+            self.send_json(get_game_mods(gid, load_config()))
+            return
 
         elif parsed.path == '/api/mods/select_dir':
-            game_id = get_query_param(query, 'id')
-            folder = open_native_dialog(is_dir=True)
-            if folder and os.path.exists(folder):
+            gid = get_query_param(query, 'id')
+            chosen = open_native_dialog(is_dir=True)
+            if chosen and os.path.isdir(chosen):
                 cfg = load_config()
-                cfg["modPaths"][game_id] = folder
+                cfg.setdefault('modPaths', {})[gid] = chosen
                 save_config(cfg)
-                self.send_json({"modsDir": folder})
+                self.send_json({'modsDir': chosen})
             else:
-                self.send_json({"modsDir": None})
+                self.send_json({'modsDir': None})
+            return
 
         elif parsed.path == '/api/mods/open_dir':
-            game_id = get_query_param(query, 'id')
-            cfg = load_config()
-            mods_dir = resolve_mods_dir(game_id, cfg)
-            if mods_dir and os.path.exists(mods_dir):
-                os.startfile(mods_dir)
-            self.send_json({"ok": True})
+            gid = get_query_param(query, 'id')
+            mdir = resolve_mods_dir(gid, load_config())
+            if mdir and os.path.isdir(mdir):
+                os.startfile(mdir)
+            self.send_json({'ok': bool(mdir and os.path.isdir(mdir))})
+            return
 
-        elif parsed.path == '/api/tweaks':
-            game_id = get_query_param(query, 'id')
+        elif parsed.path == '/api/backups/open_dir':
+            b_dir = os.path.join(BACKUPS_DIR, sanitize_filename(get_query_param(query, 'id')))
+            os.makedirs(b_dir, exist_ok=True)
+            os.startfile(b_dir)
+            self.send_json({'ok': True})
+            return
+
+        elif parsed.path == '/api/jukebox/stream':
+            src_kind = get_query_param(query, 'src')
+            fname = os.path.basename(get_query_param(query, 'f'))
+            base_d = os.path.join(SOUNDS_DIR, "music") if src_kind == "music" else SOUNDS_DIR
+            fp = os.path.join(base_d, fname)
+            if fname and os.path.isfile(fp):
+                ext = os.path.splitext(fp)[-1].lower()
+                mime_map = {'.mp3': 'audio/mpeg', '.ogg': 'audio/ogg', '.wav': 'audio/wav', '.flac': 'audio/flac', '.m4a': 'audio/mp4'}
+                self.send_response(200)
+                self.send_header('Content-Type', mime_map.get(ext, 'audio/mpeg'))
+                self.send_header('Content-Length', str(os.path.getsize(fp)))
+                self.send_header('Accept-Ranges', 'bytes')
+                self.end_headers()
+                with open(fp, 'rb') as af:
+                    shutil.copyfileobj(af, self.wfile)
+                return
+            self.send_error(404)
+            return
+
+        elif parsed.path == '/api/jukebox/list':
+            music_dir = os.path.join(SOUNDS_DIR, "music")
+            os.makedirs(music_dir, exist_ok=True)
+            tracks = []
+            valid_exts = (".mp3", ".ogg", ".wav", ".flac", ".m4a")
+            # Сначала подхватываем базовый bgm из sounds/, если есть
+            for fn in sorted(os.listdir(SOUNDS_DIR)):
+                stem, ext = os.path.splitext(fn)
+                if stem.lower() == "bgm" and ext.lower() in valid_exts:
+                    tracks.append({"title": "Main Theme (BGM)", "url": f"/api/jukebox/stream?src=root&f={urllib.parse.quote(fn)}"})
+            for fn in sorted(os.listdir(music_dir)):
+                stem, ext = os.path.splitext(fn)
+                if ext.lower() in valid_exts:
+                    tracks.append({"title": stem.replace("_", " "), "url": f"/api/jukebox/stream?src=music&f={urllib.parse.quote(fn)}"})
+            self.send_json({"tracks": tracks})
+            return
+
+        elif parsed.path == '/api/jukebox/open_dir':
+            music_dir = os.path.join(SOUNDS_DIR, "music")
+            os.makedirs(music_dir, exist_ok=True)
+            os.startfile(music_dir)
+            self.send_json({"ok": True})
+            return
+
+        elif parsed.path == '/api/profile_summary':
             cfg = load_config()
-            self.send_json(get_game_tweaks(game_id, cfg))
+            games_order = cfg.get("gamesOrder", DEFAULT_GAMES)
+            paths = cfg.get("paths", {})
+            playtime_map = cfg.get("playtime", {})
+            total_sec = sum(int(v or 0) for v in playtime_map.values())
+            total_em = 0
+            max_em_all = 0
+            total_ach_done = 0
+            total_ach_all = 0
+            installed_count = 0
+            top_game_name = "—"
+            top_game_sec = 0
+            breakdown = []
+
+            for g in games_order:
+                gid = g.get("id", "")
+                gname = g.get("name", gid)
+                p = paths.get(gid, "")
+                emu_id = g.get("emuId")
+                if emu_id:
+                    emu_obj = next((e for e in cfg.get("emulators", []) if e.get("id") == emu_id), None)
+                    exists = bool(p and os.path.exists(p) and emu_obj and os.path.exists(emu_obj.get("path", "")))
+                else:
+                    exists = bool(p and os.path.exists(p))
+                if exists:
+                    installed_count += 1
+                g_sec = int(playtime_map.get(gid, 0) or 0)
+                if g_sec > top_game_sec:
+                    top_game_sec = g_sec
+                    top_game_name = gname
+
+                em_cur, em_max, ach_done, ach_max = 0, 0, 0, 0
+                if exists and not emu_id and not g.get("custom"):
+                    try:
+                        pr = parse_game_progress(gid, cfg)
+                        if pr.get("supported"):
+                            em_cur = int(pr.get("emeralds", 0) or 0)
+                            em_max = int(pr.get("maxEmeralds", 7) or 0)
+                            achs = pr.get("achievements", [])
+                            ach_max = len(achs)
+                            ach_done = sum(1 for a in achs if a.get("done"))
+                            total_em += em_cur
+                            max_em_all += em_max
+                            total_ach_done += ach_done
+                            total_ach_all += ach_max
+                    except Exception:
+                        pass
+
+                if exists or g_sec > 0:
+                    breakdown.append({
+                        "id": gid,
+                        "name": gname,
+                        "color": g.get("color", "#3B82F6"),
+                        "seconds": g_sec,
+                        "emCur": em_cur,
+                        "emMax": em_max,
+                        "achDone": ach_done,
+                        "achMax": ach_max
+                    })
+
+            self.send_json({
+                "totalSeconds": total_sec,
+                "installedCount": installed_count,
+                "totalGames": len(games_order),
+                "emeraldsCur": total_em,
+                "emeraldsMax": max_em_all,
+                "achDone": total_ach_done,
+                "achMax": total_ach_all,
+                "topGame": top_game_name,
+                "topGameSeconds": top_game_sec,
+                "games": breakdown
+            })
+            return
+
+        elif parsed.path == '/api/themes/list':
+            os.makedirs(THEMES_DIR, exist_ok=True)
+            items = []
+            for fn in sorted(os.listdir(THEMES_DIR)):
+                low = fn.lower()
+                if low.endswith(('.json', '.sonicpack')) and not low.startswith('_temp'):
+                    fp = os.path.join(THEMES_DIR, fn)
+                    if os.path.isfile(fp):
+                        sz_kb = max(1, round(os.path.getsize(fp) / 1024))
+                        kind = 'PACK' if low.endswith('.sonicpack') else 'JSON'
+                        items.append({'file': fn, 'kind': kind, 'sizeKb': sz_kb})
+            self.send_json({'items': items, 'dir': THEMES_DIR})
+            return
+
+        elif parsed.path == '/api/themes/open_dir':
+            os.makedirs(THEMES_DIR, exist_ok=True)
+            os.startfile(THEMES_DIR)
+            self.send_json({'ok': True})
+            return
+
+        elif parsed.path == '/api/favorites':
+            self.send_json({'favorites': read_fav_list()})
+            return
 
         elif parsed.path == '/api/progress':
             gid = get_query_param(query, 'id')
@@ -988,6 +1546,56 @@ class LauncherHandler(SimpleHTTPRequestHandler):
         else:
             super().do_GET()
 
+
+ROM_VALID_EXTS = (
+    ".iso", ".rvz", ".gcm", ".wbfs", ".ciso", ".chd", ".cue",
+    ".cdi", ".gdi", ".mds", ".pbp", ".cso", ".md", ".gen",
+    ".smd", ".32x", ".gg", ".sms", ".sfc", ".smc", ".gba",
+    ".nds", ".3ds", ".cci", ".nsp", ".xci", ".xex"
+)
+
+
+def clean_rom_title(filename):
+    stem = filename.rsplit('.', 1).pop(0)
+    out, depth = '', 0
+    for ch in stem:
+        if ch in ('(', chr(91)):
+            depth += 1
+        elif ch in (')', chr(93)) and depth > 0:
+            depth -= 1
+        elif depth == 0:
+            out += ch
+    res = out.replace('_', ' ').strip(' -.')
+    return res or stem
+
+
+
+FAV_FILE_PATH = os.path.join(BASE_DIR, "favorites.json")
+
+
+def read_fav_list():
+    if os.path.isfile(FAV_FILE_PATH):
+        try:
+            with open(FAV_FILE_PATH, "r", encoding="utf-8") as ff:
+                data = json.load(ff)
+                if isinstance(data, list):
+                    return [str(x) for x in data if x]
+        except Exception:
+            pass
+    return []
+
+
+def write_fav_list(items):
+    uniq = []
+    for x in items:
+        s = str(x).strip()
+        if s and s not in uniq:
+            uniq.append(s)
+    with open(FAV_FILE_PATH, "w", encoding="utf-8") as ff:
+        json.dump(uniq, ff, ensure_ascii=False, indent=2)
+    return uniq
+
+
 def on_app_loaded():
     cfg = load_config()
     design = cfg.get("design", DEFAULT_DESIGN)
@@ -999,6 +1607,16 @@ def on_app_loaded():
             window_instance.evaluate_js("window.focus(); document.body.focus();")
         except Exception:
             pass
+
+
+# --- AUTO-START DISCORD RPC ---
+try:
+    _init_cfg = load_config()
+    _init_dsg = _init_cfg.get("design", {})
+    discord_rpc.configure(_init_dsg.get("discordRpc", True), _init_dsg.get("discordClientId", ""))
+    discord_rpc.update_menu("", "logo", _init_cfg.get("lang", "ru"))
+except Exception:
+    pass
 
 if __name__ == '__main__':
     try:

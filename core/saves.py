@@ -1,3 +1,4 @@
+from core.saves_extra import parse_mania_progress, parse_srb2_progress, find_mania_savedata
 import os, re, json, struct, hashlib
 from core.config import BASE_DIR, load_config
 
@@ -400,6 +401,12 @@ def extract_native_achievements(gid, game_dir, raw_save_bytes):
     return results
 
 def parse_game_progress(gid, cfg):
+    if gid == 'mania':
+        exe_m = cfg.get('paths', {}).get('mania', '')
+        return parse_mania_progress(os.path.dirname(exe_m) if exe_m else '')
+    if gid == 'srb2':
+        exe_s = cfg.get('paths', {}).get('srb2', '')
+        return parse_srb2_progress(os.path.dirname(exe_s) if exe_s else '')
     if gid == "origins":
         st = read_steam_origins_stats()
         if st.get("found"):

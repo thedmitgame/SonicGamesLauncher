@@ -42,6 +42,12 @@ DEFAULT_DESIGN = {
     "cardRadius": 14,
     "cardStyle": "glass",
     "shaderType": "none",
+    "screenFx": "none",
+    "screenFxOpacity": 45,
+    "cardTilt3d": True,
+    "cardAspect": "poster",
+    "launchAnim": "titlecard",
+    "clickFx": "rings",
     "logoHeight": 75,
     "fontFamily": "'Segoe UI', Roboto, Arial, sans-serif",
     "customFontUrl": "",
@@ -61,7 +67,11 @@ DEFAULT_DESIGN = {
     "appIconUrl": "",
     "appIconName": "",
     "screenshotKey": "f6",
+    "discordRpc": True,
+    "showJukebox": True,
+    "discordClientId": "",
     "characters": {},
+    "perGameStyle": {},
     "customLayout": {},
     "gradients": {
         "default": ["#090d16", "#0d2b6b"],
@@ -85,7 +95,9 @@ def load_config():
                     return {
                         "gamesOrder": DEFAULT_GAMES, "paths": data, "launchArgs": {},
                         "modPaths": {}, "modPresets": {}, "smmPath": "", "emulators": [], "srb2Mods": [], "gbIds": {}, "sgdbApiKey": "",
-                        "playtime": {}, "design": DEFAULT_DESIGN
+                        "playtime": {},
+        "favorites": [],
+        "gameNotes": {}, "design": DEFAULT_DESIGN
                     }
                 saved_order = data.get("gamesOrder", DEFAULT_GAMES)
                 known_ids = {g.get("id") for g in saved_order}

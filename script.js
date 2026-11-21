@@ -131,25 +131,54 @@ window.addEventListener('resize', () => {
 });
 
 setInterval(() => {
-    if (document.querySelector('.modal-backdrop.active') === null) {
+    if (!document.hidden && document.querySelector('.modal-backdrop.active') === null) {
         refreshPlaytimeOnly();
     }
-}, 4000);
+}, 5000);
+
+document.addEventListener('visibilitychange', () => {
+    const vid = document.getElementById('backdrop-video-layer');
+    if (vid && vid.classList.contains('visible')) {
+        if (document.hidden) vid.pause();
+        else vid.play().catch(() => {});
+    }
+    if (!document.hidden) refreshPlaytimeOnly();
+});
 
 async function refreshPlaytimeOnly() {
     try {
-        const res = await fetch('/api/games');
+        const res = await fetch('/api/playtime_ping');
         const data = await res.json();
-        gamesData = data.games;
-        window._cachedEmulators = data.emulators || [];
-        availableGames = gamesData.filter(g => g.exists);
+        const ptMap = data.playtime || {};
+        const runId = data.runningId || null;
+
+        gamesData.forEach(g => {
+            if (ptMap[g.id] !== undefined) g.playtime = ptMap[g.id];
+            g.running = (g.id === runId);
+        });
         availableGames.forEach((g, idx) => {
+            if (ptMap[g.id] !== undefined) g.playtime = ptMap[g.id];
+            g.running = (g.id === runId);
             const badge = document.getElementById(`pt-${idx}`);
             if (badge) {
                 badge.innerText = g.running ? "● В игре" : formatPlaytime(g.playtime);
                 badge.className = g.running ? "playtime-badge running" : "playtime-badge";
             }
         });
+
+        const anyRunning = Boolean(runId);
+        const vid = document.getElementById('backdrop-video-layer');
+        if (anyRunning && !pausedForRunningGame) {
+            pausedForRunningGame = true;
+            if (currentBgmAudio && !currentBgmAudio.paused) currentBgmAudio.pause();
+            if (vid && !vid.paused) vid.pause();
+        } else if (!anyRunning && pausedForRunningGame) {
+            pausedForRunningGame = false;
+            if (!userPausedMusic && currentBgmAudio && currentBgmAudio.paused && getMasterBgmVol() > 0) {
+                currentBgmAudio.play().catch(() => {});
+            }
+            if (vid && vid.classList.contains('visible') && !document.hidden) vid.play().catch(() => {});
+        }
     } catch (e) {}
 }
 
@@ -168,30 +197,128 @@ function playSfx(name) {
 let realAudioCtx = null;
 let realAnalyser = null;
 let realFreqData = null;
+const connectedMediaEls = new WeakSet();
+let userPausedMusic = false;
+let pausedForRunningGame = false;
+let jukeboxOverrideActive = false;
 
-function attachRealAnalyser(audioEl) {
-    try {
-        if (!realAudioCtx) {
-            const Ctx = window.AudioContext || window.webkitAudioContext;
-            realAudioCtx = new Ctx();
-            realAnalyser = realAudioCtx.createAnalyser();
-            realAnalyser.fftSize = 128;
-            realAnalyser.smoothingTimeConstant = 0.78;
-            realFreqData = new Uint8Array(realAnalyser.frequencyBinCount);
-            realAnalyser.connect(realAudioCtx.destination);
-        }
-        if (realAudioCtx.state === 'suspended') realAudioCtx.resume();
-        const src = realAudioCtx.createMediaElementSource(audioEl);
-        src.connect(realAnalyser);
-    } catch (e) {}
+function ensureMasterAudioGraph() {
+    if (!realAudioCtx) {
+        const Ctx = window.AudioContext || window.webkitAudioContext;
+        if (!Ctx) return;
+        realAudioCtx = new Ctx();
+        realAnalyser = realAudioCtx.createAnalyser();
+        realAnalyser.fftSize = 128;
+        realAnalyser.smoothingTimeConstant = 0.78;
+        realFreqData = new Uint8Array(realAnalyser.frequencyBinCount);
+        realAnalyser.connect(realAudioCtx.destination);
+    }
+    if (realAudioCtx.state === 'suspended') {
+        realAudioCtx.resume().catch(() => {});
+    }
 }
 
-function forceStartAudio() {
-    if (realAudioCtx && realAudioCtx.state === 'suspended') {
-        realAudioCtx.resume();
+function attachRealAnalyser(audioEl) {
+    if (!audioEl || connectedMediaEls.has(audioEl)) return;
+    try {
+        ensureMasterAudioGraph();
+        if (realAudioCtx && realAnalyser) {
+            const src = realAudioCtx.createMediaElementSource(audioEl);
+            src.connect(realAnalyser);
+            connectedMediaEls.add(audioEl);
+        }
+    } catch (e) {}
+}
+window.attachRealAnalyser = attachRealAnalyser;
+
+function getMasterBgmVol() {
+    return Math.max(0, Math.min(1, (currentDesign?.bgmVolume ?? 40) / 100));
+}
+
+function setMasterMusicTrack(url, loopTrack = true, withFade = true) {
+    const targetVol = getMasterBgmVol();
+    if (!url) {
+        if (currentBgmAudio) {
+            currentBgmAudio.pause();
+            currentBgmAudio = null;
+        }
+        currentBgmUrl = "";
+        if (typeof window.onMasterMusicStateChange === 'function') window.onMasterMusicStateChange();
+        return null;
     }
-    if (currentBgmAudio && currentBgmAudio.paused && (currentDesign?.bgmVolume ?? 40) > 0) {
-        currentBgmAudio.volume = (currentDesign?.bgmVolume ?? 40) / 100;
+
+    if (url === currentBgmUrl && currentBgmAudio) {
+        currentBgmAudio.loop = loopTrack;
+        currentBgmAudio.volume = targetVol;
+        if (!userPausedMusic && !pausedForRunningGame && targetVol > 0 && currentBgmAudio.paused) {
+            ensureMasterAudioGraph();
+            currentBgmAudio.play().catch(() => {});
+        }
+        if (typeof window.onMasterMusicStateChange === 'function') window.onMasterMusicStateChange();
+        return currentBgmAudio;
+    }
+
+    currentBgmUrl = url;
+    if (bgmFadeInterval) clearInterval(bgmFadeInterval);
+
+    const oldAudio = currentBgmAudio;
+    if (oldAudio) {
+        oldAudio.onended = null;
+        if (withFade) {
+            let fadeOut = setInterval(() => {
+                if (oldAudio.volume > 0.05) {
+                    oldAudio.volume = Math.max(0, oldAudio.volume - 0.05);
+                } else {
+                    oldAudio.pause();
+                    clearInterval(fadeOut);
+                }
+            }, 25);
+        } else {
+            oldAudio.pause();
+        }
+    }
+
+    const newAudio = new Audio();
+    newAudio.crossOrigin = "anonymous";
+    newAudio.preload = "auto";
+    newAudio.loop = loopTrack;
+    newAudio.src = url;
+    newAudio.volume = withFade ? 0 : targetVol;
+    attachRealAnalyser(newAudio);
+    currentBgmAudio = newAudio;
+
+    newAudio.addEventListener('play', () => {
+        ensureMasterAudioGraph();
+        if (typeof window.onMasterMusicStateChange === 'function') window.onMasterMusicStateChange();
+    });
+    newAudio.addEventListener('pause', () => {
+        if (typeof window.onMasterMusicStateChange === 'function') window.onMasterMusicStateChange();
+    });
+
+    if (!userPausedMusic && !pausedForRunningGame && targetVol > 0) {
+        newAudio.play().then(() => {
+            if (withFade) {
+                bgmFadeInterval = setInterval(() => {
+                    const maxV = getMasterBgmVol();
+                    if (currentBgmAudio !== newAudio) { clearInterval(bgmFadeInterval); return; }
+                    if (newAudio.volume < maxV - 0.03) {
+                        newAudio.volume = Math.min(maxV, newAudio.volume + 0.03);
+                    } else {
+                        newAudio.volume = maxV;
+                        clearInterval(bgmFadeInterval);
+                    }
+                }, 35);
+            }
+        }).catch(() => {});
+    }
+    return newAudio;
+}
+window.setMasterMusicTrack = setMasterMusicTrack;
+
+function forceStartAudio() {
+    ensureMasterAudioGraph();
+    if (!userPausedMusic && !pausedForRunningGame && currentBgmAudio && currentBgmAudio.paused && getMasterBgmVol() > 0) {
+        currentBgmAudio.volume = getMasterBgmVol();
         currentBgmAudio.play().catch(() => {});
     }
 }
@@ -199,56 +326,35 @@ window.addEventListener('pointerdown', forceStartAudio, { passive: true });
 window.addEventListener('keydown', forceStartAudio, { passive: true });
 
 function switchBgm(themeId) {
-    const targetUrl = soundsMap[`${themeId}_bgm`] || soundsMap["default_bgm"] || "";
-    const targetVol = (currentDesign?.bgmVolume ?? 40) / 100;
+    const specificUrl = soundsMap[`${themeId}_bgm`] || "";
+    const fallbackUrl = soundsMap["default_bgm"] || "";
 
-    if (targetUrl === currentBgmUrl) {
-        if (currentBgmAudio) {
-            currentBgmAudio.volume = targetVol;
-            if (targetVol > 0 && currentBgmAudio.paused) {
-                currentBgmAudio.play().catch(() => {});
-            }
+    if (specificUrl) {
+        jukeboxOverrideActive = false;
+        const g = availableGames.find(x => x.id === themeId);
+        if (typeof window.setJukeboxExternalLabel === 'function') {
+            window.setJukeboxExternalLabel(g ? `Тема: ${g.name}` : `Тема: ${themeId}`);
+        }
+        setMasterMusicTrack(specificUrl, true, true);
+        return;
+    }
+
+    if (typeof window.hasJukeboxTracks === 'function' && window.hasJukeboxTracks()) {
+        if (!jukeboxOverrideActive || !currentBgmAudio) {
+            jukeboxOverrideActive = true;
+            window.startJukeboxPlayback(false);
         }
         return;
     }
 
-    currentBgmUrl = targetUrl;
-    if (bgmFadeInterval) clearInterval(bgmFadeInterval);
-
-    const oldAudio = currentBgmAudio;
-    if (oldAudio) {
-        let fadeOut = setInterval(() => {
-            if (oldAudio.volume > 0.04) {
-                oldAudio.volume = Math.max(0, oldAudio.volume - 0.04);
-            } else {
-                oldAudio.pause();
-                clearInterval(fadeOut);
-            }
-        }, 30);
+    if (fallbackUrl) {
+        if (typeof window.setJukeboxExternalLabel === 'function') {
+            window.setJukeboxExternalLabel('Общий фон (BGM)');
+        }
+        setMasterMusicTrack(fallbackUrl, true, true);
+    } else {
+        setMasterMusicTrack("", true, false);
     }
-
-    if (!targetUrl || targetVol <= 0) {
-        currentBgmAudio = null;
-        return;
-    }
-
-    const newAudio = new Audio(targetUrl);
-    newAudio.crossOrigin = "anonymous";
-    newAudio.loop = true;
-    newAudio.volume = 0;
-    attachRealAnalyser(newAudio);
-    currentBgmAudio = newAudio;
-    newAudio.play().then(() => {
-        bgmFadeInterval = setInterval(() => {
-            const maxV = (currentDesign?.bgmVolume ?? 40) / 100;
-            if (newAudio.volume < maxV - 0.03) {
-                newAudio.volume = Math.min(maxV, newAudio.volume + 0.03);
-            } else {
-                newAudio.volume = maxV;
-                clearInterval(bgmFadeInterval);
-            }
-        }, 40);
-    }).catch(() => {});
 }
 
 
@@ -305,6 +411,32 @@ function startShaderLoop() {
         y: Math.random() * window.innerHeight,
         len: 60 + Math.random() * 160,
         vx: 14 + Math.random() * 18
+    }));
+
+    const warpStars = Array.from({ length: 75 }, () => ({
+        x: (Math.random() - 0.5) * 1600,
+        y: (Math.random() - 0.5) * 1000,
+        z: Math.random() * 1000 + 50
+    }));
+
+    const maniaShapes = Array.from({ length: 18 }, (_, idx) => ({
+        x: Math.random() * window.innerWidth,
+        y: Math.random() * window.innerHeight,
+        size: 18 + Math.random() * 28,
+        rot: Math.random() * 6.28,
+        vRot: (Math.random() - 0.5) * 0.03,
+        vx: 0.5 + Math.random() * 0.9,
+        vy: -0.4 - Math.random() * 0.8,
+        kind: idx % 3,
+        col: (idx % 3 === 0) ? '#FACC15' : ((idx % 3 === 1) ? '#EC4899' : '#38BDF8')
+    }));
+
+    const cyberCols = Array.from({ length: 28 }, () => ({
+        x: Math.random() * window.innerWidth,
+        y: Math.random() * window.innerHeight,
+        h: 35 + Math.random() * 110,
+        vy: 2.2 + Math.random() * 4.5,
+        hue: Math.random() > 0.35 ? 'rgba(56, 189, 248, 0.22)' : 'rgba(244, 63, 94, 0.24)'
     }));
 
     let tick = 0;
@@ -385,9 +517,76 @@ function startShaderLoop() {
                 ctx.arc(sp.x, sp.y, sp.r, 0, Math.PI * 2);
                 ctx.fill();
             });
+        } else if (mode === 'starfield') {
+            const cx = w * 0.5;
+            const cy = h * 0.5;
+            warpStars.forEach(st => {
+                st.z -= 8.5;
+                if (st.z <= 15) {
+                    st.x = (Math.random() - 0.5) * 1600;
+                    st.y = (Math.random() - 0.5) * 1000;
+                    st.z = 1000;
+                }
+                const k = 260 / st.z;
+                const sx = cx + st.x * k;
+                const sy = cy + st.y * k;
+                if (sx >= 0 && sx <= w && sy >= 0 && sy <= h) {
+                    const r = Math.max(0.8, (1 - st.z / 1000) * 3.8);
+                    const al = (1 - st.z / 1000).toFixed(2);
+                    ctx.fillStyle = 'rgba(255, 245, 200, ' + al + ')';
+                    ctx.beginPath();
+                    ctx.arc(sx, sy, r, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            });
+        } else if (mode === 'mania_geo') {
+            maniaShapes.forEach(sh => {
+                sh.x += sh.vx;
+                sh.y += sh.vy;
+                sh.rot += sh.vRot;
+                if (sh.x > w + 60) sh.x = -50;
+                if (sh.y < -60) sh.y = h + 50;
+                ctx.save();
+                ctx.translate(sh.x, sh.y);
+                ctx.rotate(sh.rot);
+                ctx.globalAlpha = 0.24;
+                ctx.strokeStyle = sh.col;
+                ctx.lineWidth = 3;
+                const s = sh.size;
+                if (sh.kind === 0) {
+                    ctx.beginPath();
+                    ctx.moveTo(0, -s * 0.6);
+                    ctx.lineTo(s * 0.55, s * 0.5);
+                    ctx.lineTo(-s * 0.55, s * 0.5);
+                    ctx.closePath();
+                    ctx.stroke();
+                } else if (sh.kind === 1) {
+                    ctx.beginPath();
+                    ctx.arc(0, 0, s * 0.48, 0, Math.PI * 2);
+                    ctx.stroke();
+                } else {
+                    ctx.strokeRect(-s * 0.42, -s * 0.42, s * 0.84, s * 0.84);
+                }
+                ctx.restore();
+            });
+        } else if (mode === 'cyber_glitch') {
+            cyberCols.forEach(c => {
+                c.y -= c.vy;
+                if (c.y + c.h < 0) {
+                    c.y = h + 40;
+                    c.x = Math.random() * w;
+                }
+                ctx.fillStyle = c.hue;
+                ctx.fillRect(c.x, c.y, 2.5, c.h);
+            });
+            if (tick % 38 < 3) {
+                const gy = Math.random() * h;
+                ctx.fillStyle = 'rgba(56, 189, 248, 0.12)';
+                ctx.fillRect(0, gy, w, 4 + Math.random() * 10);
+            }
         }
 
-        shaderAnimId = requestAnimationFrame(renderFrame);
+                shaderAnimId = requestAnimationFrame(renderFrame);
     }
 
     renderFrame();
@@ -544,9 +743,11 @@ function applyDesign(design) {
     }
 
     if (currentBgmAudio) {
-        const vol = (design.bgmVolume ?? 40) / 100;
+        const vol = getMasterBgmVol();
         currentBgmAudio.volume = vol;
-        if (vol > 0 && currentBgmAudio.paused) {
+        if (vol <= 0 && !currentBgmAudio.paused) {
+            currentBgmAudio.pause();
+        } else if (vol > 0 && currentBgmAudio.paused && !userPausedMusic && !pausedForRunningGame) {
             currentBgmAudio.play().catch(() => {});
         }
     }
@@ -794,7 +995,7 @@ function selectGame(index, withSound = false) {
         const progBtn = document.getElementById('progress-btn');
         if (progBtn) progBtn.classList.remove('hidden');
 
-        if (activeGame.id !== 'origins' && !activeGame.emuId) {
+        if (!activeGame.emuId) {
             modsBtn.classList.remove('hidden');
             tweaksBtn.classList.remove('hidden');
         } else {
@@ -825,6 +1026,8 @@ function moveSelection(step) {
 
 function triggerGameLaunch(game) {
     if (!game) return;
+    pausedForRunningGame = true;
+    if (currentBgmAudio && !currentBgmAudio.paused) currentBgmAudio.pause();
     playSfx('launch');
 
     const flash = document.getElementById('launch-flash');
@@ -1130,7 +1333,26 @@ async function refreshModsList() {
     const res = await fetch(`/api/mods/list?id=${activeGame.id}`);
     const data = await res.json();
     currentModsCache = data.mods || [];
+    let szStr = '';
+    const bVal = data.sizeBytes || 0;
+    if (bVal >= 1073741824) szStr = `${(bVal / 1073741824).toFixed(2)} ГБ`;
+    else if (bVal >= 1048576) szStr = `${(bVal / 1048576).toFixed(1)} МБ`;
+    else if (bVal > 0) szStr = `${Math.max(1, Math.round(bVal / 1024))} КБ`;
+
     dirLabel.innerText = data.modsDir ? data.modsDir : "Папка модов не найдена (нажмите Обзор...)";
+    dirLabel.title = data.modsDir || "";
+
+    let szBadge = document.getElementById('mods-size-badge');
+    if (!szBadge && dirLabel.parentElement) {
+        szBadge = document.createElement('span');
+        szBadge.id = 'mods-size-badge';
+        szBadge.style.cssText = 'flex-shrink:0;font-size:11px;font-weight:700;padding:3px 8px;border-radius:6px;background:rgba(96,165,250,0.16);color:#93C5FD;white-space:nowrap;';
+        dirLabel.after(szBadge);
+    }
+    if (szBadge) {
+        szBadge.innerText = szStr;
+        szBadge.style.display = szStr ? 'inline-block' : 'none';
+    }
     
     presetSelect.innerHTML = '<option value="">-- Выберите пресет модов --</option>';
     for (const pName of Object.keys(data.presets || {})) {
@@ -1223,11 +1445,13 @@ async function openTweaksModal() {
         return;
     }
 
+    const isSrb2 = (activeGame.id === 'srb2');
+    const isMania = (activeGame.id === 'mania');
     const items = [
-        { key: 'devmode', label: 'Режим разработчика (Dev Menu)', val: data.devmode },
+        { key: 'devmode', label: isSrb2 ? 'Режим отладки (-debug)' : 'Режим разработчика (Dev Menu)', val: data.devmode },
         { key: 'fullscreen', label: 'Полноэкранный режим (Fullscreen)', val: data.fullscreen },
         { key: 'vsync', label: 'Вертикальная синхронизация (VSync)', val: data.vsync },
-        { key: 'filtering', label: 'Сглаживание пикселей (Filtering)', val: data.filtering }
+        { key: 'filtering', label: isSrb2 ? 'Аппаратный 3D-рендерер (OpenGL)' : (isMania ? 'Эффект ЭЛТ-экрана (CRT Filter)' : 'Сглаживание пикселей (Filtering)'), val: data.filtering }
     ];
     if (activeGame.id !== 'sonic3') {
         items.splice(2, 0, { key: 'borderless', label: 'Окно без рамок (Borderless)', val: data.borderless });
@@ -1688,10 +1912,19 @@ function testSoundSlot(key) {
         previewSoundAudio.pause();
         previewSoundAudio = null;
     }
-    previewSoundAudio = new Audio(url);
+    if (currentBgmAudio && !currentBgmAudio.paused) {
+        currentBgmAudio.volume = getMasterBgmVol() * 0.2;
+    }
+    previewSoundAudio = new Audio();
+    previewSoundAudio.crossOrigin = "anonymous";
+    previewSoundAudio.src = url;
     const isBgm = key.endsWith('_bgm');
     const rawVol = isBgm ? (currentDesign?.bgmVolume ?? 50) : (currentDesign?.sfxVolume ?? 70);
     previewSoundAudio.volume = Math.max(0.1, rawVol / 100);
+    attachRealAnalyser(previewSoundAudio);
+    previewSoundAudio.onended = () => {
+        if (currentBgmAudio) currentBgmAudio.volume = getMasterBgmVol();
+    };
     previewSoundAudio.play().catch(() => {});
 }
 
@@ -1731,6 +1964,8 @@ function syncAllControlsToDesign() {
     if (getChk('inp-enableEq') !== undefined) currentDesign.enableEq = getChk('inp-enableEq');
     if (getChk('inp-enableParallax') !== undefined) currentDesign.enableParallax = getChk('inp-enableParallax');
     if (getChk('inp-liteMode') !== undefined) currentDesign.liteMode = getChk('inp-liteMode');
+    if (getChk('inp-discordRpc') !== undefined) currentDesign.discordRpc = getChk('inp-discordRpc');
+    if (getChk('inp-showJukebox') !== undefined) currentDesign.showJukebox = getChk('inp-showJukebox');
 }
 
 function openCustomModal() {
@@ -1791,6 +2026,8 @@ function openCustomModal() {
     if (document.getElementById('inp-enableEq')) document.getElementById('inp-enableEq').checked = currentDesign.enableEq ?? true;
     if (document.getElementById('inp-enableParallax')) document.getElementById('inp-enableParallax').checked = currentDesign.enableParallax ?? true;
     if (document.getElementById('inp-liteMode')) document.getElementById('inp-liteMode').checked = currentDesign.liteMode ?? false;
+    if (document.getElementById('inp-discordRpc')) document.getElementById('inp-discordRpc').checked = currentDesign.discordRpc ?? true;
+    if (document.getElementById('inp-showJukebox')) document.getElementById('inp-showJukebox').checked = currentDesign.showJukebox ?? true;
 
     const list = document.getElementById('color-pickers-list');
     list.innerHTML = '';
@@ -1845,7 +2082,7 @@ async function pickAppIcon() {
 
 async function exportThemeFile() {
     syncAllControlsToDesign();
-    const fname = await askDialog("Введите имя файла темы:", "my_sonic_theme");
+    const fname = await askDialog("Введите имя файла темы:", "custom_theme");
     if (!fname) return;
     const res = await fetch('/api/theme/export', {
         method: 'POST',
@@ -1942,4 +2179,41 @@ async function saveAndCloseCustom() {
     document.getElementById('custom-modal').classList.remove('active');
 }
 
+let wheelCooldown = 0;
+window.addEventListener('wheel', (e) => {
+    const isModalOpen = document.querySelector('.modal-backdrop.active') !== null
+        || document.getElementById('m4-modal')?.classList.contains('open')
+        || document.getElementById('sgl-dlg-bg')?.classList.contains('open')
+        || document.getElementById('sgl-tour-bg')?.classList.contains('open')
+        || document.body.classList.contains('hud-editing');
+    if (isModalOpen || availableGames.length <= 1) return;
 
+    const now = performance.now();
+    if (now - wheelCooldown < 145) return;
+    if (Math.abs(e.deltaY) < 8 && Math.abs(e.deltaX) < 8) return;
+
+    wheelCooldown = now;
+    const dir = (e.deltaY > 0 || e.deltaX > 0) ? 1 : -1;
+    moveSelection(dir);
+}, { passive: true });
+
+let _discordDebounceTimer = null;
+(function() {
+    const _origSelectGame = window.selectGame;
+    if (typeof _origSelectGame === 'function') {
+        window.selectGame = function() {
+            _origSelectGame.apply(this, arguments);
+            clearTimeout(_discordDebounceTimer);
+            _discordDebounceTimer = setTimeout(() => {
+                const g = availableGames.at(selectedIndex);
+                if (g && (currentDesign?.discordRpc ?? true)) {
+                    fetch('/api/discord/status', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ gameId: g.id, gameName: g.name })
+                    }).catch(() => {});
+                }
+            }, 1200);
+        };
+    }
+})();

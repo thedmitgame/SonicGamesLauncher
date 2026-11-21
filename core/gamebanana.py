@@ -2,7 +2,7 @@ import os, re, json, subprocess, urllib.request, urllib.parse
 
 GB_GAME_IDS = {
     "sonic1": 10601, "sonic2": 15019, "soniccd": 6108,
-    "sonic3": 6878, "origins": 15780, "mania": 6045, "srb2": 6786
+    "sonic3": 6878, "origins": 15780, "mania": 6045, "ext_sadx": 5892, "ext_sa2": 5893, "ext_gens": 5360, "ext_frontiers": 15779, "srb2": 6786
 }
 
 def gb_get_json(endpoint_or_url, params=None):

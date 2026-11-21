@@ -84,3 +84,141 @@ async function exportSonicPack() {
 }
 
 
+
+/* --- BACKUPS BAR IN PROGRESS MODAL --- */
+async function refreshBackupsBar(gameId) {
+    const sel = document.getElementById('sgl-backup-select');
+    if (!sel) return;
+    const res = await fetch('/api/backups/list?id=' + encodeURIComponent(gameId));
+    const data = await res.json();
+    sel.innerHTML = '';
+    const items = data.items || new Array();
+    if (items.length === 0) {
+        const o = document.createElement('option');
+        o.value = '';
+        o.textContent = '-- Бэкапов пока нет --';
+        sel.appendChild(o);
+    } else {
+        items.forEach(it => {
+            const o = document.createElement('option');
+            o.value = it.file;
+            o.textContent = it.label;
+            sel.appendChild(o);
+        });
+    }
+}
+
+async function createGameSaveBackup() {
+    const activeGame = availableGames.at(selectedIndex);
+    if (!activeGame) return;
+    const note = await askDialog('Подпись к бэкапу (необязательно):', '');
+    if (note === null) return;
+    const res = await fetch('/api/backups/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ gameId: activeGame.id, note: note })
+    });
+    const data = await res.json();
+    if (data.ok) {
+        if (typeof playSfx === 'function') playSfx('launch');
+        showToast('Бэкап сохранений создан!');
+        await refreshBackupsBar(activeGame.id);
+    } else {
+        showToast(data.error || 'Не удалось создать бэкап', true);
+    }
+}
+
+async function restoreGameSaveBackup() {
+    const activeGame = availableGames.at(selectedIndex);
+    const file = document.getElementById('sgl-backup-select')?.value;
+    if (!activeGame || !file) return;
+    if (!(await askDialog('Восстановить этот бэкап? Текущие сохранения будут перезаписаны!', null))) return;
+    const res = await fetch('/api/backups/restore', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ gameId: activeGame.id, file: file })
+    });
+    const data = await res.json();
+    if (data.ok) {
+        if (typeof playSfx === 'function') playSfx('launch');
+        showToast('Сохранения успешно восстановлены!');
+        await openProgressModal();
+    } else {
+        showToast(data.error || 'Ошибка восстановления', true);
+    }
+}
+
+async function deleteGameSaveBackup() {
+    const activeGame = availableGames.at(selectedIndex);
+    const file = document.getElementById('sgl-backup-select')?.value;
+    if (!activeGame || !file) return;
+    if (!(await askDialog('Удалить выбранный архив бэкапа?', null))) return;
+    const res = await fetch('/api/backups/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ gameId: activeGame.id, file: file })
+    });
+    const data = await res.json();
+    if (data.ok) {
+        if (typeof playSfx === 'function') playSfx('close_menu');
+        showToast('Бэкап удалён');
+        await refreshBackupsBar(activeGame.id);
+    }
+}
+
+function openGameBackupsFolder() {
+    const activeGame = availableGames.at(selectedIndex);
+    if (activeGame) fetch('/api/backups/open_dir?id=' + encodeURIComponent(activeGame.id));
+}
+
+(function() {
+    const origOpenProg = window.openProgressModal;
+    if (typeof origOpenProg === 'function' && !window._progBackupsWrapped) {
+        window._progBackupsWrapped = true;
+        window.openProgressModal = async function() {
+            await origOpenProg.apply(this, arguments);
+            const activeGame = availableGames.at(selectedIndex);
+            const box = document.getElementById('progress-content');
+            if (!activeGame || !box) return;
+            document.getElementById('sgl-backups-bar')?.remove();
+
+            const bar = document.createElement('div');
+            bar.id = 'sgl-backups-bar';
+            bar.style.cssText = 'background:rgba(0,0,0,0.32);border:1px solid rgba(255,215,0,0.22);border-radius:10px;padding:10px;margin-bottom:12px;display:flex;flex-direction:column;gap:8px;';
+
+            const row1 = document.createElement('div');
+            row1.style.cssText = 'display:flex;justify-content:space-between;align-items:center;gap:6px;';
+            const titleSpan = document.createElement('span');
+            titleSpan.style.cssText = 'font-size:12px;font-weight:700;color:#FFD700;';
+            titleSpan.textContent = 'Резервные копии сохранений';
+
+            const btnGroup = document.createElement('div');
+            btnGroup.style.cssText = 'display:flex;gap:5px;';
+            const bAdd = document.createElement('button');
+            bAdd.type = 'button'; bAdd.className = 'btn-small btn-accent';
+            bAdd.textContent = '+ Создать бэкап'; bAdd.onclick = createGameSaveBackup;
+            const bDir = document.createElement('button');
+            bDir.type = 'button'; bDir.className = 'btn-small';
+            bDir.textContent = 'Папка'; bDir.onclick = openGameBackupsFolder;
+            btnGroup.append(bAdd, bDir);
+            row1.append(titleSpan, btnGroup);
+
+            const row2 = document.createElement('div');
+            row2.style.cssText = 'display:flex;gap:6px;align-items:center;';
+            const sel = document.createElement('select');
+            sel.id = 'sgl-backup-select'; sel.className = 'custom-select';
+            sel.style.cssText = 'flex:1;padding:5px 8px;';
+            const bRes = document.createElement('button');
+            bRes.type = 'button'; bRes.className = 'btn-small';
+            bRes.textContent = 'Восстановить'; bRes.onclick = restoreGameSaveBackup;
+            const bDel = document.createElement('button');
+            bDel.type = 'button'; bDel.className = 'btn-small btn-clear';
+            bDel.textContent = '×'; bDel.title = 'Удалить бэкап'; bDel.onclick = deleteGameSaveBackup;
+            row2.append(sel, bRes, bDel);
+
+            bar.append(row1, row2);
+            box.prepend(bar);
+            await refreshBackupsBar(activeGame.id);
+        };
+    }
+})();

@@ -117,7 +117,7 @@
                 bar.innerHTML = `
                     <div style="display:flex;justify-content:space-between;align-items:center;font-size:11.5px;">
                         <b style="color:#FFD700;">Готовые стили в 1 клик:</b>
-                        <button type="button" class="btn-small btn-accent" onclick="openExternalThemeStudio()">Открыть Theme Studio</button>
+                        <div style="display:flex;gap:5px;"><button type="button" class="btn-small" onclick="enterHudEditor()">Редактор HUD (F2)</button><button type="button" class="btn-small btn-accent" onclick="openExternalThemeStudio()">Открыть Theme Studio</button></div>
                     </div>
                     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:5px;">
                         <button type="button" class="btn-small" onclick="applyQuickStudioPreset('sega_blue')">SEGA</button>
