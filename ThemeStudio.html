@@ -2,1122 +2,835 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
-<title>Launcher — Theme Studio v2.1</title>
+<title>Sonic Launcher — Theme Studio v3.0</title>
 <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
-    body {
-        font-family: 'Segoe UI', Roboto, Arial, sans-serif;
-        background: #0b0f19; color: #fff; height: 100vh; overflow: hidden;
-        display: grid; grid-template-columns: 290px 1fr 290px; grid-template-rows: 52px 1fr;
-    }
-    header {
-        grid-column: 1 / -1; background: #111726; border-bottom: 1px solid rgba(255,255,255,0.1);
-        display: flex; align-items: center; justify-content: space-between; padding: 0 18px;
-    }
-    .brand { font-weight: 900; font-size: 15px; color: #FFD700; letter-spacing: 0.8px; }
-    .top-actions { display: flex; gap: 8px; align-items: center; } .top-actions .btn { white-space: nowrap; }
-    .btn {
-        background: #2563eb; color: #fff; border: none; padding: 7px 13px; border-radius: 8px;
-        font-size: 12px; font-weight: 700; cursor: pointer; transition: 0.15s;
-    }
-    .btn:hover { opacity: 0.9; transform: translateY(-1px); }
-    .btn.sec { background: rgba(255,255,255,0.1); }
-    .btn.gold { background: #d97706; }
+*{box-sizing:border-box;margin:0;padding:0;user-select:none;}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:#070b14;color:#f1f5f9;height:100vh;display:flex;flex-direction:column;overflow:hidden;}
+.topbar{height:52px;background:#0d1324;border-bottom:1px solid rgba(255,255,255,0.1);display:flex;align-items:center;justify-content:space-between;padding:0 16px;gap:12px;flex-shrink:0;}
+.brand{display:flex;align-items:center;gap:10px;font-weight:900;font-size:15px;letter-spacing:0.8px;color:#FFD700;}
+.conn-pill{font-size:11px;font-weight:700;padding:3px 10px;border-radius:999px;background:rgba(148,163,184,0.15);color:#94a3b8;border:1px solid rgba(255,255,255,0.1);}
+.conn-pill.live{background:rgba(74,222,128,0.15);color:#4ade80;border-color:rgba(74,222,128,0.4);}
+.top-actions{display:flex;align-items:center;gap:8px;}
+.btn{padding:7px 13px;border-radius:8px;border:1px solid rgba(255,255,255,0.14);background:#172036;color:#f8fafc;font-size:12px;font-weight:700;cursor:pointer;transition:0.15s;}
+.btn:hover{background:#243252;border-color:#60a5fa;}
+.btn-gold{background:linear-gradient(135deg,#facc15,#f59e0b);color:#090d16;border:none;font-weight:900;box-shadow:0 4px 14px rgba(250,204,21,0.3);}
+.btn-gold:hover{filter:brightness(1.08);transform:translateY(-1px);}
+.btn-blue{background:#2563eb;border-color:#3b82f6;}
+.workspace{flex:1;display:grid;grid-template-columns:330px 1fr 275px;min-height:0;transition:0.2s;}
+body.zen-preview .workspace{grid-template-columns:0px 1fr 0px;}
+body.zen-preview .left-dock, body.zen-preview .right-dock{opacity:0;pointer-events:none;overflow:hidden;}
+.left-dock{background:#0c1222;border-right:1px solid rgba(255,255,255,0.09);display:flex;flex-direction:column;min-height:0;}
+.right-dock{background:#0c1222;border-left:1px solid rgba(255,255,255,0.09);padding:14px;overflow-y:auto;display:flex;flex-direction:column;gap:12px;}
+.nav-tabs{display:grid;grid-template-columns:repeat(5,1fr);gap:3px;padding:8px;background:#080d19;border-bottom:1px solid rgba(255,255,255,0.08);}
+.ntab{padding:7px 2px;border-radius:7px;border:none;background:transparent;color:#94a3b8;font-size:10.5px;font-weight:800;cursor:pointer;text-align:center;transition:0.15s;}
+.ntab:hover{color:#fff;background:rgba(255,255,255,0.06);}
+.ntab.active{background:rgba(255,215,0,0.16);color:#FFD700;box-shadow:inset 0 0 0 1px rgba(255,215,0,0.38);}
+.tab-body{flex:1;overflow-y:auto;padding:12px 14px;display:none;flex-direction:column;gap:10px;}
+.tab-body.active{display:flex;}
+.card{background:rgba(255,255,255,0.035);border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:8px;}
+.card-h{font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:0.8px;color:#FFD700;}
+.fld{display:flex;flex-direction:column;gap:4px;font-size:11.5px;color:#cbd5e1;}
+.fld-row{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:11.5px;}
+input[type="range"]{width:100%;accent-color:#FFD700;cursor:pointer;}
+input[type="color"]{width:34px;height:26px;border:none;background:none;cursor:pointer;}
+select, input[type="text"], input[type="number"]{width:100%;padding:6px 8px;border-radius:7px;border:1px solid rgba(255,255,255,0.15);background:#131c31;color:#fff;font-size:12px;user-select:text;}
+.layer-item{display:flex;justify-content:space-between;align-items:center;padding:7px 9px;border-radius:8px;background:rgba(255,255,255,0.04);border:1px solid transparent;cursor:pointer;font-size:12px;}
+.layer-item:hover{background:rgba(255,255,255,0.08);}
+.layer-item.sel{border-color:#FFD700;background:rgba(255,215,0,0.1);color:#FFD700;font-weight:700;}
 
-    aside {
-        background: #111726; border-right: 1px solid rgba(255,255,255,0.08);
-        padding: 14px; overflow-y: auto; display: flex; flex-direction: column; gap: 14px;
-    }
-    aside.right { border-right: none; border-left: 1px solid rgba(255,255,255,0.08); }
-    .panel-title { font-size: 12px; font-weight: 800; color: #FFD700; text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 6px; }
-    .card-box { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 10px; display: flex; flex-direction: column; gap: 8px; font-size: 12px; }
-    label { display: flex; flex-direction: column; gap: 4px; color: rgba(255,255,255,0.85); }
-    select, input[type="text"], input[type="number"] {
-        background: #1a2236; color: #fff; border: 1px solid rgba(255,255,255,0.16);
-        border-radius: 6px; padding: 6px 8px; font-size: 12px; outline: none; width: 100%;
-    }
-    input[type="range"] { width: 100%; cursor: pointer; }
-    input[type="color"] { width: 100%; height: 30px; border: none; background: none; cursor: pointer; }
-
-    .layer-item {
-        padding: 7px 10px; border-radius: 7px; background: rgba(255,255,255,0.04);
-        cursor: pointer; display: flex; justify-content: space-between; align-items: center; font-size: 12px;
-    }
-    .layer-item:hover { background: rgba(255,255,255,0.09); }
-    .layer-item.active { background: rgba(37, 99, 235, 0.35); border: 1px solid #3b82f6; font-weight: 700; }
-
-    main {
-        position: relative; overflow: hidden;
-        background: linear-gradient(-45deg, #090d16, #0d2b6b, #090d16);
-    }
-    #stage { position: relative; width: 100%; height: 100%; overflow: hidden; }
-    .hud-el { position: absolute; cursor: grab; outline: 1px dashed transparent; transition: outline-color 0.15s; }
-    .hud-el:hover { outline-color: rgba(255, 215, 0, 0.55); }
-    .hud-el.selected-hud { outline: 2px solid #FFD700 !important; z-index: 500 !important; }
-    .hud-el:active { cursor: grabbing; }
-
-    #hud-header { top: 8%; left: 50%; transform: translate(-50%, -50%); text-align: center; white-space: nowrap; }
-    #hud-header h1 { font-size: 26px; font-weight: 900; color: #FFD700; letter-spacing: 2px; text-shadow: 0 3px 12px rgba(0,0,0,0.6); }
-    #hud-header p { font-size: 10px; opacity: 0.75; letter-spacing: 1px; margin-top: 3px; }
-    #hud-gamelogo { top: 21%; left: 50%; transform: translate(-50%, -50%); padding: 7px 20px; background: rgba(0,0,0,0.35); border-radius: 10px; font-weight: 900; font-size: 15px; color: #38bdf8; border: 1px solid rgba(56,189,248,0.4); white-space: nowrap; }
-
-    #hud-carousel { top: 52%; left: 50%; width: 640px; height: 240px; transform: translate(-50%, -50%); }
-    .demo-card {
-        position: absolute; top: 50%; left: 50%; width: 125px; height: 180px;
-        background: linear-gradient(180deg, #1e3a8a, #0f172a); border: 2px solid rgba(255,255,255,0.25);
-        border-radius: 12px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
-        padding: 10px; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.5); transition: all 0.25s ease;
-    }
-    .demo-card.center { border-color: #FFD700; box-shadow: 0 0 24px rgba(255,215,0,0.45); }
-    .demo-card span { font-size: 11px; font-weight: 800; }
-    .demo-card small { font-size: 9px; opacity: 0.7; }
-
-    .pill-hud {
-        background: rgba(16,22,38,0.85); border: 1px solid rgba(255,255,255,0.25);
-        color: #fff; padding: 6px 12px; border-radius: 18px; font-size: 11px; font-weight: 700;
-        display: flex; align-items: center; gap: 5px; white-space: nowrap;
-    }
-    body.st-sega .pill-hud { border-radius: 6px; border-color: #3b82f6; }
-    body.st-retro .pill-hud { border-radius: 2px; border: 2px solid #FFD700; background: #000; }
-    body.st-neon .pill-hud { border-color: #ec4899; box-shadow: 0 0 12px rgba(236,72,153,0.5); }
-
-    .align-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
-    #drop-banner {
-        position: fixed; inset: 0; background: rgba(37,99,235,0.88); z-index: 9999;
-        display: none; align-items: center; justify-content: center; font-size: 20px; font-weight: 800;
-    }
+.stage-area{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:18px;background:radial-gradient(circle at center,#131b2e 0%,#060911 100%);position:relative;overflow:hidden;}
+.stage-toolbar{position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:30;display:flex;gap:8px;background:rgba(10,15,28,0.85);padding:5px 10px;border-radius:999px;border:1px solid rgba(255,255,255,0.12);font-size:11px;align-items:center;}
+#canvas{width:min(100%, 960px);aspect-ratio:1020 / 680;position:relative;border-radius:12px;overflow:hidden;box-shadow:0 24px 60px rgba(0,0,0,0.85), 0 0 0 1px rgba(255,255,255,0.15);background:linear-gradient(-45deg,#041436,#0066FF);}
+#canvas.show-grid::after{content:"";position:absolute;inset:0;pointer-events:none;z-index:4;background-image:linear-gradient(rgba(255,255,255,0.06) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.06) 1px,transparent 1px);background-size:5% 5%;}
+#fx-overlay{position:absolute;inset:0;pointer-events:none;z-index:3;}
+.hud-el{position:absolute;transform:translate(-50%,-50%);cursor:grab;z-index:10;transition:box-shadow 0.12s;}
+.hud-el:active{cursor:grabbing;}
+.hud-el.selected-hud{outline:2px dashed #FFD700;outline-offset:4px;z-index:22;}
+.sim-btn{padding:6px 13px;border-radius:20px;background:rgba(15,23,42,0.68);border:1px solid rgba(255,255,255,0.22);color:#fff;font-size:11px;font-weight:700;white-space:nowrap;backdrop-filter:blur(8px);}
+.sim-bar{display:flex;gap:5px;align-items:center;}
+.sim-catbar{display:flex;gap:6px;padding:4px 9px;border-radius:999px;background:rgba(10,15,28,0.82);border:1px solid rgba(255,255,255,0.16);font-size:10px;font-weight:700;}
+.sim-catbar span.act{color:#FFD700;background:rgba(255,215,0,0.2);padding:2px 8px;border-radius:999px;}
+.sim-cards{display:flex;align-items:center;justify-content:center;gap:18px;pointer-events:none;}
+.sim-card{width:128px;height:182px;border-radius:12px;background:linear-gradient(160deg,#162033,#0b101d);border:2px solid #334155;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:11px;font-weight:900;text-align:center;padding:8px;position:relative;}
+.sim-card.main{transform:scale(1.1);border-color:#FFD700;box-shadow:0 12px 28px rgba(0,0,0,0.7);}
+.sim-card.box3d{transform:perspective(600px) rotateY(24deg) scale(1.06);border-left:10px solid #1e3a8a;}
+.sim-showcase-info{width:210px;padding:12px;border-radius:12px;background:rgba(12,18,32,0.86);border:1px solid rgba(255,255,255,0.16);border-left:3px solid #FFD700;text-align:left;font-size:10px;display:none;flex-direction:column;gap:5px;}
+.sim-widget{padding:6px 10px;border-radius:10px;background:rgba(12,18,32,0.8);border:1px solid rgba(255,255,255,0.16);border-left:3px solid #FFD700;font-size:10px;font-weight:800;white-space:nowrap;}
+.toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:#10b981;color:#052e16;font-weight:900;font-size:12.5px;padding:8px 18px;border-radius:999px;opacity:0;pointer-events:none;transition:0.25s;z-index:999;}
+.toast.show{opacity:1;bottom:26px;}
 </style>
 </head>
-<body class="st-sega">
-<div id="drop-banner">Отпустите .JSON или .SONICPACK файл для загрузки в студию</div>
+<body>
 
-<header>
-    <div class="brand">LAUNCHER — THEME STUDIO v2.1</div>
-    <div class="top-actions">
-        <select id="studio-lang" onchange="setStudioLang(this.value)" style="width:auto;min-width:130px;background:#1a2236;color:#fff;border:1px solid rgba(255,255,255,0.2);border-radius:8px;padding:6px 10px;font-size:12px;font-weight:700;">
+<div class="topbar">
+    <div class="brand">
+        <span>⚡ SONIC THEME STUDIO v3.0</span>
+        <span class="conn-pill" id="conn-badge">Автономный режим</span>
+        <select id="ts-lang-sel" onchange="setStudioLang(this.value)" style="width:auto;padding:4px 10px;border-radius:999px;font-size:11.5px;font-weight:800;background:#172036;color:#FFD700;border:1px solid rgba(255,215,0,0.4);cursor:pointer;">
             <option value="ru">RU • Русский</option>
             <option value="en">EN • English</option>
         </select>
-        <input type="file" id="file-import" accept=".json,.sonicpack" style="display:none">
-        <button class="btn sec" onclick="document.getElementById('file-import').click()">Импорт .JSON / .SONICPACK</button>
-        <button class="btn sec" onclick="resetStudio()">Новый шаблон</button>
-        <button class="btn" onclick="exportJson()">Скачать тему (.JSON)</button>
-        <button class="btn gold" onclick="exportSonicPack()">Скачать .SONICPACK</button>
     </div>
-</header>
-
-<aside>
-    <div>
-        <div class="panel-title">Элементы интерфейса (Слои)</div>
-        <div class="card-box" id="layers-list"></div>
+    <div class="top-actions">
+        <button class="btn" onclick="toggleZen()" title="Скрыть боковые панели (Пробел)">👁 Чистое превью</button>
+        <button class="btn" onclick="pullFromLauncher()" id="btn-pull" style="display:none;">↻ Загрузить из лаунчера</button>
+        <button class="btn" onclick="document.getElementById('file-imp').click()">📂 Открыть .JSON</button>
+        <input type="file" id="file-imp" accept=".json" style="display:none" onchange="importJsonFile(event)">
+        <button class="btn btn-blue" onclick="downloadJson()">💾 Скачать .JSON</button>
+        <button class="btn btn-gold" id="btn-push" onclick="pushToLauncher()">⚡ Применить в лаунчер</button>
     </div>
+</div>
 
-    <div>
-        <div class="panel-title">Глобальный стиль темы</div>
-        <div class="card-box">
-            <label>Стиль карточек и кнопок:
-                <select id="g-cardStyle" onchange="updateGlobal('cardStyle', this.value)">
-                    <option value="sega">Спортивный (Скошенный)</option>
-                    <option value="console">Console HUD (Строгий)</option>
-                    <option value="retro">Ретро Пиксель (16-Bit)</option>
-                    <option value="neon">Neon Grid</option>
-                    <option value="glass">Glassmorphism</option>
+<div class="workspace">
+    <div class="left-dock">
+        <div class="nav-tabs">
+            <button class="ntab active" onclick="swTab('layers',this)">Слои</button>
+            <button class="ntab" onclick="swTab('ui',this)">Кнопки</button>
+            <button class="ntab" onclick="swTab('cards',this)">Карусель</button>
+            <button class="ntab" onclick="swTab('bg',this)">Фон / FX</button>
+            <button class="ntab" onclick="swTab('widgets',this)">Виджеты</button>
+        </div>
+
+        <!-- 1. СЛОИ HUD -->
+        <div class="tab-body active" id="tb-layers">
+            <div class="card">
+                <div class="card-h">Быстрый макет экрана</div>
+                <select id="s-screenLayout" onchange="applyPresetLayout(this.value)">
+                    <option value="classic">1. Классический</option>
+                    <option value="console_left">2. Консольный</option>
+                    <option value="arcade_bottom">3. Аркадный</option>
+                    <option value="top_bar">4. Верхняя панель</option>
+                    <option value="showcase_pro">5. Широкая Витрина (Showcase)</option>
                 </select>
-            </label>
-                        <label>Фоновый эффект / шейдер:
-                <select id="g-shaderType" onchange="updateGlobal('shaderType', this.value)">
-                    <option value="none">Без эффекта (только градиент)</option>
+            </div>
+            <div class="card" style="flex:1;">
+                <div class="card-h">Элементы на экране (клик или перетаскивание)</div>
+                <div id="layers-list" style="display:flex;flex-direction:column;gap:5px;"></div>
+            </div>
+        </div>
+
+        <!-- 2. КНОПКИ, ОКНА И ТЕКСТ (UI BUILDER) -->
+        <div class="tab-body" id="tb-ui">
+            <div class="card">
+                <label class="fld-row" style="color:#FFD700;font-weight:800;cursor:pointer;">
+                    <span>Включить ручной Конструктор UI</span>
+                    <input type="checkbox" id="u-enabled" onchange="syncState()">
+                </label>
+                <div class="fld-row"><span>Фон кнопок</span><input type="color" id="u-btnBg" value="#0f172a" oninput="enableAndSync()"></div>
+                <div class="fld-row"><span>Цвет при наведении</span><input type="color" id="u-btnHoverBg" value="#2563eb" oninput="enableAndSync()"></div>
+                <div class="fld-row"><span>Контур кнопок</span><input type="color" id="u-btnBorderCol" value="#60a5fa" oninput="enableAndSync()"></div>
+                <div class="fld"><span>Прозрачность кнопок</span><input type="range" id="u-btnBgAlpha" min="10" max="100" value="68" oninput="enableAndSync()"></div>
+                <div class="fld"><span>Скругление кнопок (px)</span><input type="range" id="u-btnRadius" min="0" max="32" value="22" oninput="enableAndSync()"></div>
+                <div class="fld"><span>Скос плашек Skew (°)</span><input type="range" id="u-btnSkew" min="-22" max="22" value="0" oninput="enableAndSync()"></div>
+            </div>
+            <div class="card">
+                <div class="card-h">Типографика и Цвета</div>
+                <div class="fld"><span>Заголовок лаунчера</span><input type="text" id="s-mainTitleStr" value="SONIC LAUNCHER" oninput="syncState()"></div>
+                <div class="fld-row"><span>Цвет заголовка</span><input type="color" id="s-titleColor" value="#FFD700" oninput="syncState()"></div>
+                <div class="fld-row"><span>Цвет текста</span><input type="color" id="s-textColor" value="#ffffff" oninput="syncState()"></div>
+                <div class="fld"><span>Тень заголовков</span>
+                    <select id="u-textShadowMode" onchange="enableAndSync()">
+                        <option value="soft">Мягкая объёмная</option>
+                        <option value="retro">Ретро 16-bit (Жёсткая)</option>
+                        <option value="neon">Неоновое свечение</option>
+                        <option value="none">Без тени</option>
+                    </select>
+                </div>
+                <div class="fld"><span>Разрядка букв (px)</span><input type="range" id="u-letterSpacing" min="-1" max="8" step="0.5" value="1.5" oninput="enableAndSync()"></div>
+            </div>
+        </div>
+
+        <!-- 3. КАРУСЕЛЬ И 3D-БОКСЫ -->
+        <div class="tab-body" id="tb-cards">
+            <div class="card">
+                <div class="card-h">Режим библиотеки</div>
+                <select id="s-carouselMode" onchange="syncState()">
+                    <option value="coverflow">Классический веер (Cover Flow)</option>
+                    <option value="arc">Дуга / Колесо (Arc)</option>
+                    <option value="row">Горизонтальный ряд (Row)</option>
+                    <option value="showcase">Крупная Витрина (Showcase)</option>
+                    <option value="grid">Плитка всей библиотеки (Grid)</option>
+                </select>
+                <div class="fld"><span>Базовый стиль плашек</span>
+                    <select id="s-cardStyle" onchange="syncState()">
+                        <option value="sega">Спортивный (Скошенный)</option>
+                        <option value="console">Console HUD</option>
+                        <option value="retro">Ретро Пиксель 16-Bit</option>
+                        <option value="neon">Neon Grid</option>
+                        <option value="glass">Матовое стекло</option>
+                    </select>
+                </div>
+                <div class="fld"><span>Размер карточек (px)</span><input type="range" id="s-cardWidth" min="150" max="280" value="200" oninput="syncState()"></div>
+                <div class="fld"><span>Скругление обложек (px)</span><input type="range" id="s-cardRadius" min="0" max="28" value="14" oninput="syncState()"></div>
+                <div class="fld-row"><span>Цвет активной рамки</span><input type="color" id="u-cardSelCol" value="#FFD700" oninput="enableAndSync()"></div>
+            </div>
+            <div class="card">
+                <div class="card-h">Физические 3D-коробки (Box Art)</div>
+                <label class="fld-row" style="cursor:pointer;">
+                    <span>Включить 3D-боксы для всех игр</span>
+                    <input type="checkbox" id="b3-enabled" onchange="syncState()">
+                </label>
+                <select id="b3-caseType" onchange="syncState()">
+                    <option value="cartridge">Картридж-бокс (Толстый)</option>
+                    <option value="dvd">DVD / Консольный кейс</option>
+                    <option value="cd">CD Jewel Case</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- 4. ФОН И ЭКРАННЫЕ ЭФФЕКТЫ -->
+        <div class="tab-body" id="tb-bg">
+            <div class="card">
+                <div class="card-h">Градиент фона (По умолчанию / Игра 1)</div>
+                <div class="fld-row"><span>Цвет 1</span><input type="color" id="g-c0" value="#041436" oninput="syncState()"></div>
+                <div class="fld-row"><span>Цвет 2</span><input type="color" id="g-c1" value="#0066FF" oninput="syncState()"></div>
+                <label class="fld-row" style="cursor:pointer;margin-top:4px;">
+                    <span>Светлая тема интерфейса (Light UI)</span>
+                    <input type="checkbox" id="s-lightUi" onchange="syncState()">
+                </label>
+            </div>
+            <div class="card">
+                <div class="card-h">Фоновый шейдер и Пост-обработка</div>
+                <select id="s-shaderType" onchange="syncState()">
+                    <option value="none">Без шейдера</option>
+                    <option value="starfield">Звёздный варп (Starfield)</option>
+                    <option value="mania_geo">Геометрия Аркады</option>
+                    <option value="cyber_glitch">Кибер-глитч</option>
                     <option value="synthwave">Ретро-сетка (Synthwave)</option>
-                    <option value="speedlines">Скоростные линии (Speed Lines)</option>
-                    <option value="checker">Движущаяся шахматка</option>
-                    <option value="sparks">Золотые искры</option>
+                    <option value="speedlines">Скоростные линии</option>
+                    <option value="sparks">Искры Изумрудов</option>
                 </select>
-            </label>
-            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px;">
-                <button type="button" class="btn sec" style="padding:5px;" onclick="applyStudioPreset('sega')">Спорт</button>
-                <button type="button" class="btn sec" style="padding:5px;" onclick="applyStudioPreset('mania')">Поп-Арт</button>
-                <button type="button" class="btn sec" style="padding:5px;" onclick="applyStudioPreset('neon')">Neon</button>
-                <button type="button" class="btn sec" style="padding:5px;" onclick="applyStudioPreset('console')">Console</button>
+                <div class="fld"><span>Экранный фильтр (Screen FX)</span>
+                    <select id="s-screenFx" onchange="syncState()">
+                        <option value="none">Без фильтра</option>
+                        <option value="crt">ЭЛТ-монитор (CRT Scanlines)</option>
+                        <option value="vhs">Ретро кассета (VHS)</option>
+                        <option value="vignette">Кино-виньетка</option>
+                        <option value="pixelgrid">Пиксельная матрица</option>
+                    </select>
+                </div>
+                <div class="fld"><span>Сила фильтра (%)</span><input type="range" id="s-screenFxOpacity" min="10" max="100" value="50" oninput="syncState()"></div>
             </div>
-            <label>Режим карусели:
-                <select id="g-carouselMode" onchange="updateGlobal('carouselMode', this.value)">
-                    <option value="coverflow">3D-Круг (Объёмное кольцо)</option>
-                    <option value="arc">Дуга / Колесо</option>
-                    <option value="row">Горизонтальный ряд</option>
-                </select>
-            </label>
-            <label>Ширина 3D-круга (<span id="lbl-rx">100</span>%):
-                <input type="range" id="g-rx" min="45" max="160" value="100" oninput="updateGlobal('carouselRadiusX', parseInt(this.value))">
-            </label>
-            <label>Угол / глубина круга (<span id="lbl-ry">34</span>):
-                <input type="range" id="g-ry" min="-60" max="120" value="34" oninput="updateGlobal('carouselRadiusY', parseInt(this.value))">
-            </label>
-            <label>Анимация персонажей:
-                <select id="g-charAnim" onchange="updateGlobal('charAnim', this.value)">
-                    <option value="slide_up">Снизу вверх (плавно)</option>
-                    <option value="slide_side">Сбоку (с краёв экрана)</option>
-                    <option value="fade">Плавное проявление (Fade)</option>
-                    <option value="pop">Пружинка (Pop / Scale)</option>
-                    <option value="dash">Скоростной рывок (Dash)</option>
-                    <option value="none">Без анимации</option>
-                </select>
-            </label>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
-                <label>Цвет текста:<input type="color" id="g-textColor" value="#ffffff" oninput="updateGlobal('textColor', this.value)"></label>
-                <label>Заголовок:<input type="color" id="g-titleColor" value="#FFD700" oninput="updateGlobal('titleColor', this.value)"></label>
-            </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
-                <label>Градиент 1:<input type="color" id="g-grad0" value="#090d16" oninput="updateGrad()"></label>
-                <label>Градиент 2:<input type="color" id="g-grad1" value="#0d2b6b" oninput="updateGrad()"></label>
+        </div>
+
+        <!-- 5. ИНФО-ВИДЖЕТЫ -->
+        <div class="tab-body" id="tb-widgets">
+            <div class="card">
+                <div class="card-h">Модульные виджеты экрана</div>
+                <label class="fld-row"><span>Аркадные часы (TIME)</span><input type="checkbox" id="w-clock" onchange="syncState()"></label>
+                <label class="fld-row"><span>Сводка Изумрудов профиля</span><input type="checkbox" id="w-emeralds" onchange="syncState()"></label>
+                <label class="fld-row"><span>Активность и топ-игра</span><input type="checkbox" id="w-playtime" onchange="syncState()"></label>
+                <label class="fld-row"><span>Шпаргалка заметки игры</span><input type="checkbox" id="w-notes" onchange="syncState()"></label>
+                <label class="fld-row"><span>Музыкальный плеер Jukebox</span><input type="checkbox" id="s-showJukebox" checked onchange="syncState()"></label>
             </div>
         </div>
     </div>
-</aside>
 
-<main id="canvas-wrap">
-    <canvas id="studio-shader-canvas" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;"></canvas>
-    <div id="stage">
-        <div class="hud-el" id="hud-header" data-hud="header">
-            <h1 id="title-preview">SONIC LAUNCHER</h1>
-            <p>← → ВЫБОР • ENTER ЗАПУСК • F6 СКРИНШОТ</p>
+    <!-- ЦЕНТРАЛЬНЫЙ ХОЛСТ 16:9 -->
+    <div class="stage-area">
+        <div class="stage-toolbar">
+            <label style="display:flex;align-items:center;gap:5px;cursor:pointer;"><input type="checkbox" id="chk-grid" checked onchange="document.getElementById('canvas').classList.toggle('show-grid',this.checked)"> Сетка</label>
+            <span>•</span>
+            <label style="display:flex;align-items:center;gap:5px;cursor:pointer;"><input type="checkbox" id="chk-snap" checked> Привязка 1%</label>
+            <span>•</span>
+            <span style="opacity:0.7;">Пробел — Чистый вид</span>
         </div>
-        <div class="hud-el" id="hud-gamelogo" data-hud="gamelogo">SONIC THE HEDGEHOG</div>
-        <div class="hud-el" id="hud-carousel" data-hud="carousel"></div>
 
-        <div class="hud-el pill-hud" id="hud-btn-settings" data-hud="btn-settings" style="left:22%;top:92%;">Игры и пути</div>
-        <div class="hud-el pill-hud" id="hud-btn-mods" data-hud="btn-mods" style="left:36%;top:92%;">Моды</div>
-        <div class="hud-el pill-hud" id="hud-btn-tweaks" data-hud="btn-tweaks" style="left:49%;top:92%;">Настройки игры</div>
-        <div class="hud-el pill-hud" id="hud-btn-shots" data-hud="btn-shots" style="left:63%;top:92%;">Скриншоты</div>
-        <div class="hud-el pill-hud" id="hud-btn-progress" data-hud="btn-progress" style="left:76%;top:92%;">Прогресс</div>
-
-        <div class="hud-el pill-hud" id="hud-btn-custom" data-hud="btn-custom" style="left:4%;top:92%;">Тема</div>
-        <div class="hud-el pill-hud" id="hud-btn-help" data-hud="btn-help" style="left:9%;top:92%;">?</div>
-        <div class="hud-el pill-hud" id="hud-btn-tray" data-hud="btn-tray" style="left:90%;top:92%;">—</div>
-        <div class="hud-el pill-hud" id="hud-btn-exit" data-hud="btn-exit" style="left:95%;top:92%;">×</div>
-
-        <div class="hud-el pill-hud" id="hud-m5bar" data-hud="m5bar" style="left:66%;top:5%;">Рулетка • Игра • Сейвы</div>
-        <div class="hud-el pill-hud" id="hud-lang" data-hud="lang" style="left:7%;top:5%;">RU • Русский ▾</div>
-        <div class="hud-el pill-hud" id="hud-m4btn" data-hud="jukebox" style="left:82%;top:16%;padding:5px 12px;border-radius:20px;background:rgba(12,18,32,0.85);border:1px solid rgba(255,255,255,0.2);font-size:11px;">Музыкальный плеер</div>
-        <div class="hud-el" data-hud="m4btn" style="left:89%;top:5%;">Атмосфера</div>
+        <div id="canvas" class="show-grid">
+            <div id="fx-overlay"></div>
+            <div class="hud-el" data-hud="lang" style="left:6%;top:5%;"><div class="sim-btn">RU • Русский</div></div>
+            <div class="hud-el" data-hud="m5bar" style="left:66%;top:5%;"><div class="sim-bar"><div class="sim-btn">Рулетка</div><div class="sim-btn">Сейвы</div><div class="sim-btn">Гайды</div><div class="sim-btn">Профиль</div></div></div>
+            <div class="hud-el" data-hud="m4btn" style="left:91%;top:5%;"><div class="sim-btn">Атмосфера</div></div>
+            <div class="hud-el" data-hud="header" style="left:50%;top:11%;text-align:center;">
+                <div id="prev-title" style="font-size:22px;font-weight:900;color:#FFD700;">SONIC LAUNCHER</div>
+                <div style="font-size:8.5px;opacity:0.7;letter-spacing:1px;margin-top:2px;">← → ВЫБОР • ENTER ЗАПУСК • F11 ПОЛНЫЙ ЭКРАН</div>
+            </div>
+            <div class="hud-el" data-hud="catbar" style="left:50%;top:18%;"><div class="sim-catbar"><span class="act">Все игры</span><span>Базовые</span><span>+ Полка</span></div></div>
+            <div class="hud-el" data-hud="gamelogo" style="left:50%;top:25%;font-size:15px;font-weight:900;color:#fff;letter-spacing:2px;">SONIC FOREVER</div>
+            <div class="hud-el" data-hud="carousel" style="left:50%;top:54%;">
+                <div class="sim-cards" id="prev-cards">
+                    <div class="sim-card" style="opacity:0.65;transform:scale(0.86);">SONIC 2<br>ABSOLUTE</div>
+                    <div class="sim-card main" id="prev-main-card">SONIC 1<br>FOREVER</div>
+                    <div class="sim-card" id="prev-side-card" style="opacity:0.65;transform:scale(0.86);">SONIC 3<br>A.I.R.</div>
+                    <div class="sim-showcase-info" id="prev-sc-info">
+                        <b style="font-size:13px;color:#fff;">Sonic 1 Forever</b>
+                        <span style="color:#FFD700;">1991 • REMASTER</span>
+                        <span style="opacity:0.75;">Крупная витрина Showcase с быстрым запуском и сводкой</span>
+                        <div style="margin-top:4px;padding:5px 10px;background:#FFD700;color:#000;font-weight:900;border-radius:7px;width:fit-content;">▶ ИГРАТЬ</div>
+                    </div>
+                </div>
+            </div>
+            <div class="hud-el sim-widget" id="hw-w-clock" data-hud="w-clock" style="left:12%;top:22%;display:none;">TIME 12:45</div>
+            <div class="hud-el sim-widget" id="hw-w-emeralds" data-hud="w-emeralds" style="left:88%;top:24%;display:none;">◆ 19 / 35</div>
+            <div class="hud-el sim-widget" id="hw-w-playtime" data-hud="w-playtime" style="left:12%;top:32%;display:none;">14.5 ч. в игре</div>
+            <div class="hud-el sim-widget" id="hw-w-notes" data-hud="w-notes" style="left:88%;top:35%;display:none;">ЗАМЕТКА ИГРЫ</div>
+            <div class="hud-el" data-hud="btn-custom" style="left:4%;top:93%;"><div class="sim-btn">🎨</div></div>
+            <div class="hud-el" data-hud="footer-center" style="left:50%;top:93%;"><div class="sim-bar"><div class="sim-btn">Игры и пути</div><div class="sim-btn">Моды</div><div class="sim-btn">Настройки игры</div><div class="sim-btn">Прогресс</div></div></div>
+            <div class="hud-el" data-hud="footer-right" style="left:94%;top:93%;"><div class="sim-bar"><div class="sim-btn">—</div><div class="sim-btn">✕</div></div></div>
+        </div>
     </div>
-</main>
 
-<aside class="right">
-    <div class="panel-title">Инспектор элемента</div>
-    <div class="card-box" id="inspector-empty">Кликните по любому элементу на холсте или в списке слоёв слева</div>
-    <div class="card-box" id="inspector-body" style="display:none;">
-        <div id="insp-name" style="font-weight:800;color:#38bdf8;font-size:13px;">Элемент</div>
-        <div class="align-grid">
-            <button class="btn sec" onclick="alignEl('left')">↖ Лево</button>
-            <button class="btn sec" onclick="alignEl('centerX')">↔ Центр X</button>
-            <button class="btn sec" onclick="alignEl('right')">↗ Право</button>
-            <button class="btn sec" onclick="alignEl('top')">⬆ Верх</button>
-            <button class="btn sec" onclick="alignEl('centerY')">↕ Центр Y</button>
-            <button class="btn sec" onclick="alignEl('bottom')">⬇ Низ</button>
+    <!-- ПРАВЫЙ ИНСПЕКТОР ВЫБРАННОГО ЭЛЕМЕНТА -->
+    <div class="right-dock">
+        <div class="card">
+            <div class="card-h">Инспектор элемента</div>
+            <div id="insp-name" style="font-size:13px;font-weight:800;color:#60a5fa;">Заголовок лаунчера</div>
+            <div class="fld"><span>Позиция X (<b id="lbl-x">50</b>%)</span><input type="range" id="inp-x" min="2" max="98" step="0.5" value="50" oninput="updateSelectedPos()"></div>
+            <div class="fld"><span>Позиция Y (<b id="lbl-y">11</b>%)</span><input type="range" id="inp-y" min="2" max="98" step="0.5" value="11" oninput="updateSelectedPos()"></div>
+            <div class="fld"><span>Масштаб (<b id="lbl-sc">1.00</b>x)</span><input type="range" id="inp-sc" min="0.5" max="1.8" step="0.05" value="1" oninput="updateSelectedPos()"></div>
+            <label class="fld-row" style="cursor:pointer;margin-top:4px;">
+                <span>Скрыть этот элемент</span>
+                <input type="checkbox" id="inp-hid" onchange="updateSelectedPos()">
+            </label>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:4px;">
+                <button class="btn" onclick="centerSelected('x')">↔ Центр X</button>
+                <button class="btn" onclick="centerSelected('y')">↕ Центр Y</button>
+            </div>
+            <button class="btn" style="width:100%;margin-top:4px;" onclick="resetAllPositions()">Сбросить все позиции</button>
         </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
-            <label>Позиция X (%):<input type="number" id="insp-x" step="0.5" oninput="updateElProp('x', parseFloat(this.value))"></label>
-            <label>Позиция Y (%):<input type="number" id="insp-y" step="0.5" oninput="updateElProp('y', parseFloat(this.value))"></label>
+
+        <div class="card">
+            <div class="card-h">Памятка горячих клавиш</div>
+            <div style="font-size:11px;line-height:1.55;color:#94a3b8;">
+                • <b>Мышь</b> — перетаскивание любого блока на холсте<br>
+                • <b>Колесо мыши по блоку</b> — плавный масштаб<br>
+                • <b>Стрелки клавиатуры</b> — точный сдвиг на 0.5%<br>
+                • <b>Пробел</b> — полноэкранный чистый просмотр
+            </div>
         </div>
-        <label>Масштаб (<span id="insp-sc-lbl">1.0</span> x):
-            <input type="range" id="insp-scale" min="0.5" max="2.0" step="0.05" oninput="updateElProp('scale', parseFloat(this.value))">
-        </label>
-        <label id="insp-text-wrap">Текст элемента:
-            <input type="text" id="insp-text" oninput="updateElText(this.value)">
-        </label>
-        <label style="flex-direction:row;align-items:center;gap:8px;cursor:pointer;">
-            <input type="checkbox" id="insp-hidden" onchange="updateElProp('hidden', this.checked)"> Скрыть элемент в теме
-        </label>
     </div>
-</aside>
+</div>
+<div class="toast" id="toast">Сохранено!</div>
 
 <script>
-const HUD_META = {
-    header: "Заголовок лаунчера",
-    gamelogo: "Логотип активной игры",
-    carousel: "3D-Карусель игр",
-    "btn-settings": "Кнопка «Игры и пути»",
-    "btn-mods": "Кнопка «Моды»",
-    "btn-tweaks": "Кнопка «Настройки игры»",
-    "btn-shots": "Кнопка «Скриншоты»",
-    "btn-progress": "Кнопка «Прогресс»",
-    "btn-custom": "Кнопка «Настройки темы»",
-    "btn-help": "Кнопка «Обучение (?)»",
-    "btn-tray": "Кнопка «В трей»",
-    "btn-exit": "Кнопка «Выход»",
-    m5bar: "Верхняя панель (Рулетка / Папки)",
-    m4btn: "Кнопка «Атмосфера и Заставка»",
-    lang: "Переключатель языка (RU / EN)"
+const HUD_NAMES = {
+    header: 'Заголовок лаунчера', catbar: 'Панель категорий и полок', gamelogo: 'Логотип игры',
+    carousel: 'Карусель / Витрина игр', m5bar: 'Верхняя панель кнопок', m4btn: 'Кнопка Атмосфера',
+    lang: 'Переключатель языка', 'footer-center': 'Нижний ряд кнопок', 'btn-custom': 'Кнопка Настройки темы',
+    'footer-right': 'Кнопки Трей и Выход', 'w-clock': 'Виджет: Часы', 'w-emeralds': 'Виджет: Изумруды',
+    'w-playtime': 'Виджет: Активность', 'w-notes': 'Виджет: Заметка'
 };
 
-let design = {
-    cardStyle: "sega",
-    carouselMode: "coverflow",
-    carouselRadiusX: 100,
-    carouselRadiusY: 34,
-    charAnim: "slide_up",
-    textColor: "#ffffff",
-    titleColor: "#FFD700",
-    mainTitleStr: "SONIC LAUNCHER",
-    gradients: { default: ["#090d16", "#0d2b6b"] },
-    buttons: {
-        settings: { label: "Игры и пути", iconMode: "svg" },
-        mods: { label: "Моды", iconMode: "svg" },
-        tweaks: { label: "Настройки игры", iconMode: "svg" },
-        shots: { label: "Скриншоты", iconMode: "svg" },
-        progress: { label: "Прогресс", iconMode: "svg" },
-        custom: { label: "", iconMode: "svg" },
-        tray: { label: "", iconMode: "svg" },
-        exit: { label: "", iconMode: "svg" }
-    },
+let state = {
+    screenLayout: 'classic', carouselMode: 'coverflow', cardStyle: 'sega',
+    cardWidth: 200, cardRadius: 14, mainTitleStr: 'SONIC LAUNCHER',
+    titleColor: '#FFD700', textColor: '#ffffff', lightUi: false, showJukebox: true,
+    shaderType: 'none', screenFx: 'none', screenFxOpacity: 50,
+    gradients: { default: Array.of('#090d16','#0d2b6b'), sonic1: Array.of('#041436','#0066FF') },
+    hudWidgets: { clock: false, emeralds: false, playtime: false, notes: false },
+    box3d: { _global: { enabled: false, caseType: 'cartridge', depth: 26 } },
+    uiThemeBuilder: { enabled: false, btnBg: '#0f172a', btnHoverBg: '#2563eb', btnBorderCol: '#60a5fa', btnBgAlpha: 68, btnRadius: 22, btnSkew: 0, cardSelCol: '#FFD700', textShadowMode: 'soft', letterSpacing: 1.5 },
     customLayout: {}
 };
 
-let selectedHud = null;
+let selectedHud = 'header';
+let isLiveServer = location.protocol.startsWith('http');
 
-function initStudio() {
-    const list = document.getElementById('layers-list');
-    list.innerHTML = '';
-    for (const [id, title] of Object.entries(HUD_META)) {
-        const div = document.createElement('div');
-        div.className = 'layer-item';
-        div.id = 'layer-' + id;
-        div.innerHTML = `<span>${title}</span><span style="opacity:0.5;font-size:10px;">#${id}</span>`;
-        div.onclick = () => selectHudElement(id);
-        list.appendChild(div);
-    }
+function toast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg; t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2200);
+}
 
-    const wrap = document.getElementById('stage').getBoundingClientRect();
-    document.querySelectorAll('.hud-el').forEach(el => {
-        const id = el.getAttribute('data-hud');
-        const rect = el.getBoundingClientRect();
-        if (!design.customLayout[id]) {
-            design.customLayout[id] = {
-                x: +(((rect.left + rect.width / 2 - wrap.left) / wrap.width) * 100).toFixed(1),
-                y: +(((rect.top + rect.height / 2 - wrap.top) / wrap.height) * 100).toFixed(1),
-                scale: 1, hidden: false, anchor: 'center'
-            };
-        }
+function swTab(id, btn) {
+    document.querySelectorAll('.ntab').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-body').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tb-' + id).classList.add('active');
+}
 
-        el.onpointerdown = (e) => {
-            e.stopPropagation();
-            selectHudElement(id);
-            const startX = e.clientX, startY = e.clientY;
-            const origX = design.customLayout[id].x;
-            const origY = design.customLayout[id].y;
-            const stRect = document.getElementById('stage').getBoundingClientRect();
+function toggleZen() { document.body.classList.toggle('zen-preview'); }
 
-            const onMove = (ev) => {
-                const dx = ((ev.clientX - startX) / stRect.width) * 100;
-                const dy = ((ev.clientY - startY) / stRect.height) * 100;
-                design.customLayout[id].x = +(origX + dx).toFixed(1);
-                design.customLayout[id].y = +(origY + dy).toFixed(1);
-                renderCanvas();
-                syncInspector();
-            };
-            const onUp = () => {
-                window.removeEventListener('pointermove', onMove);
-                window.removeEventListener('pointerup', onUp);
-            };
-            window.addEventListener('pointermove', onMove);
-            window.addEventListener('pointerup', onUp);
-        };
+function hexRgba(hex, a) {
+    const h = String(hex || '#0f172a').replace('#', '');
+    const n = parseInt(h, 16) || 0;
+    return 'rgba(' + ((n>>16)&255) + ',' + ((n>>8)&255) + ',' + (n&255) + ',' + (a/100).toFixed(2) + ')';
+}
+
+function buildLayersList() {
+    const box = document.getElementById('layers-list');
+    box.innerHTML = '';
+    Object.entries(HUD_NAMES).forEach(pair => {
+        const k = pair.at(0), lbl = pair.at(1);
+        const row = document.createElement('div');
+        row.className = 'layer-item' + (selectedHud === k ? ' sel' : '');
+        const hid = state.customLayout[k]?.hidden;
+        row.innerHTML = '<span>' + lbl + '</span><span style="font-size:10px;opacity:0.65;">' + (hid ? 'Скрыт' : 'Виден') + '</span>';
+        row.onclick = () => selectLayer(k);
+        box.appendChild(row);
     });
+}
 
+function getElCoords(id) {
+    const saved = state.customLayout[id];
+    if (saved && typeof saved.x === 'number') return saved;
+    const dom = document.querySelector('[data-hud="' + id + '"]');
+    return { x: parseFloat(dom?.style.left || 50), y: parseFloat(dom?.style.top || 50), scale: 1, hidden: false, anchor: 'center' };
+}
+
+function selectLayer(id) {
+    selectedHud = id;
+    document.querySelectorAll('.hud-el').forEach(e => e.classList.toggle('selected-hud', e.dataset.hud === id));
+    const c = getElCoords(id);
+    document.getElementById('insp-name').textContent = HUD_NAMES[id] || id;
+    document.getElementById('inp-x').value = c.x; document.getElementById('lbl-x').textContent = c.x;
+    document.getElementById('inp-y').value = c.y; document.getElementById('lbl-y').textContent = c.y;
+    document.getElementById('inp-sc').value = c.scale || 1; document.getElementById('lbl-sc').textContent = Number(c.scale || 1).toFixed(2);
+    document.getElementById('inp-hid').checked = Boolean(c.hidden);
+    buildLayersList();
+}
+
+function updateSelectedPos() {
+    const x = parseFloat(document.getElementById('inp-x').value);
+    const y = parseFloat(document.getElementById('inp-y').value);
+    const sc = parseFloat(document.getElementById('inp-sc').value);
+    const hid = document.getElementById('inp-hid').checked;
+    state.customLayout[selectedHud] = { x, y, scale: sc, hidden: hid, anchor: 'center' };
+    document.getElementById('lbl-x').textContent = x;
+    document.getElementById('lbl-y').textContent = y;
+    document.getElementById('lbl-sc').textContent = sc.toFixed(2);
+    renderCanvas();
+    buildLayersList();
+}
+
+function centerSelected(axis) {
+    const c = getElCoords(selectedHud);
+    if (axis === 'x') c.x = 50; else c.y = 50;
+    state.customLayout[selectedHud] = Object.assign({}, c, { anchor: 'center' });
+    selectLayer(selectedHud); renderCanvas();
+}
+
+function resetAllPositions() { state.customLayout = {}; renderCanvas(); selectLayer(selectedHud); }
+
+function enableAndSync() { document.getElementById('u-enabled').checked = true; syncState(); }
+
+function applyPresetLayout(val) {
+    state.screenLayout = val;
+    if (val === 'showcase_pro') { document.getElementById('s-carouselMode').value = 'showcase'; }
+    syncState();
+}
+
+function syncState() {
+    const val = id => document.getElementById(id).value;
+    const chk = id => document.getElementById(id).checked;
+    state.screenLayout = val('s-screenLayout');
+    state.carouselMode = val('s-carouselMode');
+    state.cardStyle = val('s-cardStyle');
+    state.cardWidth = Number(val('s-cardWidth'));
+    state.cardRadius = Number(val('s-cardRadius'));
+    state.mainTitleStr = val('s-mainTitleStr');
+    state.titleColor = val('s-titleColor');
+    state.textColor = val('s-textColor');
+    state.lightUi = chk('s-lightUi');
+    state.showJukebox = chk('s-showJukebox');
+    state.shaderType = val('s-shaderType');
+    state.screenFx = val('s-screenFx');
+    state.screenFxOpacity = Number(val('s-screenFxOpacity'));
+    state.gradients.sonic1 = Array.of(val('g-c0'), val('g-c1'));
+    state.gradients.default = Array.of(val('g-c0'), val('g-c1'));
+    state.hudWidgets = { clock: chk('w-clock'), emeralds: chk('w-emeralds'), playtime: chk('w-playtime'), notes: chk('w-notes') };
+    if (!state.box3d) state.box3d = {};
+    state.box3d._global = Object.assign(state.box3d._global || {}, { enabled: chk('b3-enabled'), caseType: val('b3-caseType') });
+    state.uiThemeBuilder = Object.assign(state.uiThemeBuilder || {}, {
+        enabled: chk('u-enabled'), btnBg: val('u-btnBg'), btnHoverBg: val('u-btnHoverBg'),
+        btnBorderCol: val('u-btnBorderCol'), btnBgAlpha: Number(val('u-btnBgAlpha')),
+        btnRadius: Number(val('u-btnRadius')), btnSkew: Number(val('u-btnSkew')),
+        cardSelCol: val('u-cardSelCol'), textShadowMode: val('u-textShadowMode'), letterSpacing: Number(val('u-letterSpacing'))
+    });
     renderCanvas();
 }
 
-function renderDemoCarousel() {
-    const box = document.getElementById('hud-carousel');
-    const games = [
-        { name: "Sonic 3 A.I.R.", tag: "1994" },
-        { name: "Sonic 1 Forever", tag: "1991" },
-        { name: "Sonic 2 Absolute", tag: "1992" },
-        { name: "Sonic CD Restored", tag: "1993" },
-        { name: "Sonic Mania", tag: "2017 • PLUS" },
-        { name: "Sonic Robo Blast 2", tag: "3D FAN GAME" },
-        { name: "Sonic Origins", tag: "COLLECTION" }
-    ];
-    box.innerHTML = '';
-    const total = games.length;
-    const rx = ((design.carouselRadiusX ?? 100) / 100) * 190;
-    const ry = design.carouselRadiusY ?? 34;
-
-    games.forEach((g, i) => {
-        let diff = i - 1;
-        if (diff > total / 2) diff -= total;
-        if (diff < -total / 2) diff += total;
-
-        const card = document.createElement('div');
-        card.className = 'demo-card' + (diff === 0 ? ' center' : '');
-        card.innerHTML = `<span>${g.name}</span><small>${g.tag}</small>`;
-
-        if (design.carouselMode === 'coverflow') {
-            const angle = (diff / total) * Math.PI * 2;
-            const sinA = Math.sin(angle), cosA = Math.cos(angle);
-            const depth = (cosA + 1) / 2;
-            const ox = sinA * rx;
-            const oy = (1 - cosA) * -ry;
-            const sc = 0.55 + Math.pow(depth, 1.3) * 0.52;
-            card.style.transform = `translate(calc(-50% + ${ox.toFixed(1)}px), calc(-50% + ${oy.toFixed(1)}px)) scale(${sc.toFixed(2)})`;
-            card.style.opacity = (0.35 + depth * 0.65).toFixed(2);
-            card.style.zIndex = Math.round(depth * 20) + 1;
-        } else if (design.carouselMode === 'row') {
-            card.style.transform = `translate(calc(-50% + ${diff * 140}px), -50%) scale(${diff === 0 ? 1.05 : 0.9})`;
-            card.style.zIndex = diff === 0 ? 10 : 5;
-        } else {
-            const arcY = Math.pow(Math.abs(diff), 1.5) * 20;
-            card.style.transform = `translate(calc(-50% + ${diff * 125}px), calc(-50% + ${arcY}px)) scale(${diff === 0 ? 1.05 : 0.82})`;
-            card.style.zIndex = 10 - Math.abs(diff);
-        }
-        box.appendChild(card);
-    });
+function populateInputsFromState() {
+    const setV = (id, v) => { const e = document.getElementById(id); if (e && v !== undefined) e.value = v; };
+    const setC = (id, v) => { const e = document.getElementById(id); if (e) e.checked = Boolean(v); };
+    setV('s-screenLayout', state.screenLayout || 'classic');
+    setV('s-carouselMode', state.carouselMode || 'coverflow');
+    setV('s-cardStyle', state.cardStyle || 'sega');
+    setV('s-cardWidth', state.cardWidth || 200);
+    setV('s-cardRadius', state.cardRadius ?? 14);
+    setV('s-mainTitleStr', state.mainTitleStr || 'SONIC LAUNCHER');
+    setV('s-titleColor', state.titleColor || '#FFD700');
+    setV('s-textColor', state.textColor || '#ffffff');
+    setC('s-lightUi', state.lightUi);
+    setC('s-showJukebox', state.showJukebox ?? true);
+    setV('s-shaderType', state.shaderType || 'none');
+    setV('s-screenFx', state.screenFx || 'none');
+    setV('s-screenFxOpacity', state.screenFxOpacity ?? 50);
+    const g1 = (state.gradients && (state.gradients.sonic1 || state.gradients.default)) || Array.of('#041436','#0066FF');
+    setV('g-c0', g1.at(0)); setV('g-c1', g1.at(1));
+    const hw = state.hudWidgets || {};
+    setC('w-clock', hw.clock); setC('w-emeralds', hw.emeralds); setC('w-playtime', hw.playtime); setC('w-notes', hw.notes);
+    const b3 = (state.box3d && state.box3d._global) || {};
+    setC('b3-enabled', b3.enabled); setV('b3-caseType', b3.caseType || 'cartridge');
+    const u = state.uiThemeBuilder || {};
+    setC('u-enabled', u.enabled); setV('u-btnBg', u.btnBg || '#0f172a'); setV('u-btnHoverBg', u.btnHoverBg || '#2563eb');
+    setV('u-btnBorderCol', u.btnBorderCol || '#60a5fa'); setV('u-btnBgAlpha', u.btnBgAlpha ?? 68);
+    setV('u-btnRadius', u.btnRadius ?? 22); setV('u-btnSkew', u.btnSkew ?? 0);
+    setV('u-cardSelCol', u.cardSelCol || '#FFD700'); setV('u-textShadowMode', u.textShadowMode || 'soft'); setV('u-letterSpacing', u.letterSpacing ?? 1.5);
+    renderCanvas(); selectLayer(selectedHud);
 }
 
 function renderCanvas() {
-    document.body.className = 'st-' + (design.cardStyle || 'sega');
-    const grads = design.gradients?.default || ['#090d16', '#0d2b6b'];
-    const g0 = grads.at(0) || '#090d16';
-    const g1 = grads.at(1) || '#0d2b6b';
-    document.getElementById('canvas-wrap').style.background = `linear-gradient(-45deg, ${g0}, ${g1}, ${g0})`;
-    document.getElementById('title-preview').innerText = design.mainTitleStr || 'SONIC LAUNCHER';
-    document.getElementById('title-preview').style.color = design.titleColor || '#FFD700';
+    const cvs = document.getElementById('canvas');
+    const g = (state.gradients && state.gradients.sonic1) || Array.of('#041436','#0066FF');
+    cvs.style.background = state.lightUi ? 'linear-gradient(135deg,#f8fafc,#cbd5e1)' : ('linear-gradient(-45deg,' + g.at(0) + ',' + g.at(1) + ')');
+    cvs.style.color = state.lightUi ? '#0f172a' : (state.textColor || '#fff');
 
-    for (const [id, pos] of Object.entries(design.customLayout)) {
-        const el = document.getElementById('hud-' + id);
-        if (!el) continue;
-        el.style.display = pos.hidden ? 'none' : '';
-        el.style.left = pos.x + '%';
-        el.style.top = pos.y + '%';
-        const skew = (design.cardStyle === 'sega' && el.classList.contains('pill-hud')) ? ' skewX(-14deg)' : '';
-        el.style.transform = `translate(-50%, -50%) scale(${pos.scale || 1})${skew}`;
-    }
-    renderDemoCarousel();
-}
+    const tEl = document.getElementById('prev-title');
+    tEl.textContent = state.mainTitleStr || 'SONIC LAUNCHER';
+    tEl.style.color = state.titleColor || '#FFD700';
 
-function selectHudElement(id) {
-    selectedHud = id;
-    document.querySelectorAll('.hud-el').forEach(e => e.classList.remove('selected-hud'));
-    document.querySelectorAll('.layer-item').forEach(e => e.classList.remove('active'));
-    document.getElementById('hud-' + id)?.classList.add('selected-hud');
-    document.getElementById('layer-' + id)?.classList.add('active');
-    document.getElementById('inspector-empty').style.display = 'none';
-    document.getElementById('inspector-body').style.display = 'flex';
-    syncInspector();
-}
+    const u = state.uiThemeBuilder || {};
+    tEl.style.letterSpacing = (u.enabled ? u.letterSpacing : 1.5) + 'px';
+    let sh = '0 3px 10px rgba(0,0,0,0.6)';
+    if (u.enabled && u.textShadowMode === 'retro') sh = '3px 3px 0 #000';
+    else if (u.enabled && u.textShadowMode === 'neon') sh = '0 0 14px ' + state.titleColor;
+    tEl.style.textShadow = sh;
 
-function syncInspector() {
-    if (!selectedHud) return;
-    const pos = design.customLayout[selectedHud];
-    const rawTitle = HUD_META[selectedHud] || selectedHud;
-    const curLang = document.getElementById('studio-lang')?.value || 'ru';
-    document.getElementById('insp-name').innerText = (curLang === 'en' && STUDIO_EN[rawTitle]) ? STUDIO_EN[rawTitle] : rawTitle;
-    document.getElementById('insp-x').value = pos.x;
-    document.getElementById('insp-y').value = pos.y;
-    document.getElementById('insp-scale').value = pos.scale || 1;
-    document.getElementById('insp-sc-lbl').innerText = (pos.scale || 1).toFixed(2);
-    document.getElementById('insp-hidden').checked = !!pos.hidden;
-
-    const txtWrap = document.getElementById('insp-text-wrap');
-    if (selectedHud === 'header') {
-        txtWrap.style.display = 'flex';
-        document.getElementById('insp-text').value = design.mainTitleStr || '';
-    } else if (design.buttons && design.buttons[selectedHud]) {
-        txtWrap.style.display = 'flex';
-        document.getElementById('insp-text').value = design.buttons[selectedHud].label || '';
-    } else {
-        txtWrap.style.display = 'none';
-    }
-}
-
-function updateElProp(key, val) {
-    if (!selectedHud) return;
-    design.customLayout[selectedHud][key] = val;
-    if (key === 'scale') document.getElementById('insp-sc-lbl').innerText = val.toFixed(2);
-    renderCanvas();
-}
-
-function updateElText(val) {
-    if (!selectedHud) return;
-    if (selectedHud === 'header') {
-        design.mainTitleStr = val;
-    } else if (design.buttons && design.buttons[selectedHud]) {
-        design.buttons[selectedHud].label = val;
-        const el = document.getElementById('hud-' + selectedHud);
-        if (el) el.innerText = val || '●';
-    }
-    renderCanvas();
-}
-
-function alignEl(dir) {
-    if (!selectedHud) return;
-    const p = design.customLayout[selectedHud];
-    if (dir === 'centerX') p.x = 50;
-    if (dir === 'centerY') p.y = 50;
-    if (dir === 'left') p.x = 8;
-    if (dir === 'right') p.x = 92;
-    if (dir === 'top') p.y = 8;
-    if (dir === 'bottom') p.y = 92;
-    renderCanvas();
-    syncInspector();
-}
-
-function updateGlobal(key, val) {
-    design[key] = val;
-    if (key === 'carouselRadiusX') document.getElementById('lbl-rx').innerText = val;
-    if (key === 'carouselRadiusY') document.getElementById('lbl-ry').innerText = val;
-    renderCanvas();
-}
-
-function updateGrad() {
-    if (!design.gradients) design.gradients = {};
-    design.gradients.default = [document.getElementById('g-grad0').value, document.getElementById('g-grad1').value];
-    renderCanvas();
-}
-
-function applyStudioPreset(kind) {
-    const map = {
-        sega:    { cardStyle: 'sega', shaderType: 'speedlines', carouselMode: 'coverflow', titleColor: '#FFD700', gradients: { default: ['#041436', '#0066ff'] } },
-        mania:   { cardStyle: 'retro', shaderType: 'checker', carouselMode: 'arc', titleColor: '#FDE047', gradients: { default: ['#2e1005', '#f59e0b'] } },
-        neon:    { cardStyle: 'neon', shaderType: 'synthwave', carouselMode: 'coverflow', titleColor: '#F472B6', gradients: { default: ['#16072e', '#db2777'] } },
-        console: { cardStyle: 'console', shaderType: 'sparks', carouselMode: 'row', titleColor: '#38BDF8', gradients: { default: ['#081b2e', '#0284c7'] } }
-    };
-    if (map[kind]) applyImportedDesign(map[kind]);
-}
-
-function startStudioShaderLoop() {
-    const c = document.getElementById('studio-shader-canvas');
-    if (!c) return;
-    const ctx = c.getContext('2d');
-    const sparks = Array.from({ length: 30 }, () => ({ x: Math.random() * 900, y: Math.random() * 650, r: 2 + Math.random() * 2.5, vy: 0.6 + Math.random() }));
-    let tick = 0;
-    function frame() {
-        const w = c.clientWidth || 800, h = c.clientHeight || 600;
-        if (c.width !== w || c.height !== h) { c.width = w; c.height = h; }
-        ctx.clearRect(0, 0, w, h);
-        const mode = design.shaderType || 'none';
-        tick++;
-        if (mode === 'synthwave') {
-            ctx.strokeStyle = 'rgba(255,255,255,0.16)';
-            const hor = h * 0.56;
-            for (let i = -14; i <= 14; i++) {
-                ctx.beginPath(); ctx.moveTo(w * 0.5 + i * 24, hor); ctx.lineTo(w * 0.5 + i * 110, h); ctx.stroke();
-            }
-            const off = (tick * 1.3) % 24;
-            for (let y = hor; y < h; y += 24) {
-                const dy = y + off * ((y - hor) / (h - hor));
-                if (dy <= h) { ctx.beginPath(); ctx.moveTo(0, dy); ctx.lineTo(w, dy); ctx.stroke(); }
-            }
-        } else if (mode === 'speedlines') {
-            ctx.strokeStyle = 'rgba(255,255,255,0.18)'; ctx.lineWidth = 2;
-            for (let i = 0; i < 18; i++) {
-                const lx = w - ((tick * (12 + (i % 5) * 3) + i * 97) % (w + 200));
-                const ly = ((i * 53) % Math.max(100, h));
-                ctx.beginPath(); ctx.moveTo(lx, ly); ctx.lineTo(lx + 110, ly); ctx.stroke();
-            }
-        } else if (mode === 'checker') {
-            const sz = 42, sh = (tick * 0.5) % (sz * 2);
-            ctx.fillStyle = 'rgba(255,255,255,0.05)';
-            for (let x = -sz * 2; x < w + sz * 2; x += sz) {
-                for (let y = -sz * 2; y < h + sz * 2; y += sz) {
-                    if ((Math.floor(x / sz) + Math.floor(y / sz)) % 2 === 0) ctx.fillRect(x + sh, y + sh * 0.5, sz, sz);
-                }
-            }
-        } else if (mode === 'sparks') {
-            sparks.forEach(s => {
-                s.y -= s.vy; if (s.y < -10) { s.y = h + 10; s.x = Math.random() * w; }
-                ctx.fillStyle = 'rgba(255,215,0,0.55)'; ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2); ctx.fill();
-            });
+    document.querySelectorAll('.sim-btn').forEach(b => {
+        if (u.enabled) {
+            b.style.background = hexRgba(u.btnBg, u.btnBgAlpha ?? 68);
+            b.style.borderColor = u.btnBorderCol || '#60a5fa';
+            b.style.borderRadius = (u.btnRadius ?? 22) + 'px';
+            b.style.transform = u.btnSkew ? ('skewX(' + u.btnSkew + 'deg)') : 'none';
+        } else {
+            b.style.background = state.lightUi ? 'rgba(255,255,255,0.9)' : 'rgba(15,23,42,0.68)';
+            b.style.color = state.lightUi ? '#0f172a' : '#fff';
+            b.style.borderColor = state.lightUi ? '#0f172a' : 'rgba(255,255,255,0.22)';
+            b.style.borderRadius = state.cardStyle === 'retro' ? '2px' : '20px';
+            b.style.transform = state.cardStyle === 'sega' ? 'skewX(-12deg)' : 'none';
         }
-        requestAnimationFrame(frame);
-    }
-    requestAnimationFrame(frame);
-}
-window.addEventListener('DOMContentLoaded', startStudioShaderLoop);
+    });
 
-function applyImportedDesign(obj) {
-    design = { ...design, ...obj };
-    if (document.getElementById('g-shaderType')) document.getElementById('g-shaderType').value = design.shaderType || 'none';
-    document.getElementById('g-cardStyle').value = design.cardStyle || 'sega';
-    document.getElementById('g-carouselMode').value = design.carouselMode || 'coverflow';
-    document.getElementById('g-rx').value = design.carouselRadiusX ?? 100;
-    document.getElementById('lbl-rx').innerText = design.carouselRadiusX ?? 100;
-    document.getElementById('g-ry').value = design.carouselRadiusY ?? 34;
-    document.getElementById('lbl-ry').innerText = design.carouselRadiusY ?? 34;
-    document.getElementById('g-charAnim').value = design.charAnim || 'slide_up';
-    document.getElementById('g-textColor').value = design.textColor || '#ffffff';
-    document.getElementById('g-titleColor').value = design.titleColor || '#FFD700';
-    if (Array.isArray(design.gradients?.default) && design.gradients.default.length >= 2) {
-        document.getElementById('g-grad0').value = design.gradients.default.at(0);
-        document.getElementById('g-grad1').value = design.gradients.default.at(1);
-    }
-    renderCanvas();
-    if (selectedHud) syncInspector();
+    const mainC = document.getElementById('prev-main-card');
+    const sideC = document.getElementById('prev-side-card');
+    const scInfo = document.getElementById('prev-sc-info');
+    const isSc = state.carouselMode === 'showcase';
+    sideC.style.display = isSc ? 'none' : 'flex';
+    scInfo.style.display = isSc ? 'flex' : 'none';
+    document.querySelectorAll('.sim-card').forEach(c => {
+        c.style.borderRadius = (state.cardRadius ?? 14) + 'px';
+        c.classList.toggle('box3d', Boolean(state.box3d?._global?.enabled));
+    });
+    mainC.style.borderColor = u.enabled ? (u.cardSelCol || '#FFD700') : '#FFD700';
+
+    const fx = document.getElementById('fx-overlay');
+    fx.style.opacity = ((state.screenFxOpacity ?? 50) / 100).toFixed(2);
+    let fxBg = 'none';
+    if (state.screenFx === 'crt') fxBg = 'repeating-linear-gradient(0deg,rgba(0,0,0,0.38) 0px,rgba(0,0,0,0.38) 1px,transparent 2px,transparent 4px)';
+    else if (state.screenFx === 'vignette') fxBg = 'radial-gradient(circle,transparent 48%,rgba(0,0,0,0.85) 100%)';
+    fx.style.background = fxBg;
+
+    const hw = state.hudWidgets || {};
+    Array.of('clock','emeralds','playtime','notes').forEach(k => {
+        const el = document.getElementById('hw-w-' + k);
+        if (el) el.style.display = (hw[k] && !state.customLayout['w-' + k]?.hidden) ? 'block' : 'none';
+    });
+
+    document.querySelectorAll('.hud-el').forEach(el => {
+        const id = el.dataset.hud;
+        const pos = state.customLayout[id];
+        if (pos) {
+            if (pos.hidden) { el.style.display = 'none'; return; }
+            if (!id.startsWith('w-')) el.style.display = '';
+            el.style.left = pos.x + '%';
+            el.style.top = pos.y + '%';
+            el.style.transform = 'translate(-50%,-50%) scale(' + (pos.scale || 1) + ')';
+        } else if (!id.startsWith('w-')) {
+            el.style.display = '';
+            el.style.transform = 'translate(-50%,-50%) scale(1)';
+        }
+    });
 }
 
-function exportJson() {
-    const blob = new Blob([JSON.stringify(design, null, 4)], { type: 'application/json' });
+document.querySelectorAll('.hud-el').forEach(el => {
+    el.onpointerdown = e => {
+        e.stopPropagation();
+        const id = el.dataset.hud;
+        selectLayer(id);
+        const rect = document.getElementById('canvas').getBoundingClientRect();
+        const snap = document.getElementById('chk-snap').checked;
+        el.setPointerCapture(e.pointerId);
+        const mv = me => {
+            let nx = ((me.clientX - rect.left) / rect.width) * 100;
+            let ny = ((me.clientY - rect.top) / rect.height) * 100;
+            nx = Math.max(2, Math.min(98, snap ? Math.round(nx) : Number(nx.toFixed(1))));
+            ny = Math.max(2, Math.min(98, snap ? Math.round(ny) : Number(ny.toFixed(1))));
+            const cur = getElCoords(id);
+            state.customLayout[id] = { x: nx, y: ny, scale: cur.scale || 1, hidden: Boolean(cur.hidden), anchor: 'center' };
+            selectLayer(id); renderCanvas();
+        };
+        const up = () => { el.removeEventListener('pointermove', mv); el.removeEventListener('pointerup', up); };
+        el.addEventListener('pointermove', mv);
+        el.addEventListener('pointerup', up);
+    };
+    el.onwheel = e => {
+        e.preventDefault();
+        const id = el.dataset.hud;
+        const cur = getElCoords(id);
+        const delta = e.deltaY < 0 ? 0.05 : -0.05;
+        const nsc = Math.max(0.5, Math.min(1.8, Number(((cur.scale || 1) + delta).toFixed(2))));
+        state.customLayout[id] = Object.assign({}, cur, { scale: nsc, anchor: 'center' });
+        selectLayer(id); renderCanvas();
+    };
+});
+
+window.addEventListener('keydown', e => {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+    if (e.code === 'Space') { e.preventDefault(); toggleZen(); return; }
+    if (e.key.startsWith('Arrow')) {
+        e.preventDefault();
+        const c = getElCoords(selectedHud);
+        if (e.key === 'ArrowLeft') c.x = Math.max(2, c.x - 0.5);
+        if (e.key === 'ArrowRight') c.x = Math.min(98, c.x + 0.5);
+        if (e.key === 'ArrowUp') c.y = Math.max(2, c.y - 0.5);
+        if (e.key === 'ArrowDown') c.y = Math.min(98, c.y + 0.5);
+        state.customLayout[selectedHud] = Object.assign({}, c, { anchor: 'center' });
+        selectLayer(selectedHud); renderCanvas();
+    }
+});
+
+async function pullFromLauncher() {
+    try {
+        const r = await (await fetch('/api/games')).json();
+        if (r && r.design) {
+            state = Object.assign(state, r.design);
+            populateInputsFromState(); if (r.lang) setStudioLang(r.lang);
+            const b = document.getElementById('conn-badge');
+            b.textContent = '● Подключено к лаунчеру'; b.classList.add('live');
+            document.getElementById('btn-pull').style.display = 'inline-block';
+            toast('Дизайн загружен из лаунчера!');
+        }
+    } catch (_) {}
+}
+
+async function pushToLauncher() {
+    syncState();
+    if (!isLiveServer) { downloadJson(); return; }
+    try {
+        const r = await (await fetch('/api/studio/apply_live', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(state)
+        })).json();
+        if (r.ok) toast('⚡ Мгновенно применено в лаунчер!');
+    } catch (_) {
+        downloadJson();
+    }
+}
+
+function downloadJson() {
+    syncState();
     const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = 'sonic_custom_theme.json';
+    a.href = URL.createObjectURL(new Blob(Array.of(JSON.stringify(state, null, 2)), { type: 'application/json' }));
+    a.download = 'sonic_studio_theme.json';
     a.click();
+    toast('Файл sonic_studio_theme.json скачан!');
 }
 
-function crc32(buf) {
-    let c = -1;
-    for (let i = 0; i < buf.length; i++) {
-        c ^= buf.at(i);
-        for (let k = 0; k < 8; k++) c = (c >>> 1) ^ (0xEDB88320 & -(c & 1));
-    }
-    return (c ^ -1) >>> 0;
+function importJsonFile(ev) {
+    const f = ev.target.files.item(0);
+    if (!f) return;
+    const rd = new FileReader();
+    rd.onload = () => {
+        try {
+            state = Object.assign(state, JSON.parse(rd.result));
+            populateInputsFromState();
+            toast('Тема загружена в студию!');
+        } catch (_) {}
+    };
+    rd.readAsText(f);
 }
 
-function exportSonicPack() {
-    const jsonBytes = new TextEncoder().encode(JSON.stringify(design, null, 4));
-    const fname = new TextEncoder().encode("design.json");
-    const crc = crc32(jsonBytes);
-    const header = new Uint8Array(30 + fname.length);
-    const dv = new DataView(header.buffer);
-    dv.setUint32(0, 0x04034b50, true); dv.setUint16(4, 20, true); dv.setUint32(14, crc, true);
-    dv.setUint32(18, jsonBytes.length, true); dv.setUint32(22, jsonBytes.length, true); dv.setUint16(26, fname.length, true);
-    header.set(fname, 30);
+buildLayersList();
+selectLayer('header');
+renderCanvas();
+if (isLiveServer) pullFromLauncher();
 
-    const central = new Uint8Array(46 + fname.length);
-    const cdv = new DataView(central.buffer);
-    cdv.setUint32(0, 0x02014b50, true); cdv.setUint16(4, 20, true); cdv.setUint16(6, 20, true);
-    cdv.setUint32(16, crc, true); cdv.setUint32(20, jsonBytes.length, true); cdv.setUint32(24, jsonBytes.length, true); cdv.setUint16(28, fname.length, true);
-    central.set(fname, 46);
-
-    const eocd = new Uint8Array(22);
-    const edv = new DataView(eocd.buffer);
-    edv.setUint32(0, 0x06054b50, true); edv.setUint16(8, 1, true); edv.setUint16(10, 1, true);
-    edv.setUint32(12, central.length, true); edv.setUint32(16, header.length + jsonBytes.length, true);
-
-    const blob = new Blob([header, jsonBytes, central, eocd], { type: 'application/octet-stream' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = 'sonic_studio_pack.sonicpack';
-    a.click();
-}
-
-async function handleImportedFile(file) {
-    if (!file) return;
-    if (file.name.toLowerCase().endsWith('.json')) {
-        applyImportedDesign(JSON.parse(await file.text()));
-    } else if (file.name.toLowerCase().endsWith('.sonicpack')) {
-        const buf = new Uint8Array(await file.arrayBuffer());
-        const txt = new TextDecoder('utf-8', { fatal: false }).decode(buf);
-        const start = txt.indexOf('{');
-        const end = txt.lastIndexOf('}');
-        if (start !== -1 && end > start) applyImportedDesign(JSON.parse(txt.slice(start, end + 1)));
-    }
-}
-
-document.getElementById('file-import').onchange = (e) => handleImportedFile(e.target.files.item(0));
-window.addEventListener('dragover', (e) => { e.preventDefault(); document.getElementById('drop-banner').style.display = 'flex'; });
-window.addEventListener('dragleave', (e) => { if (e.target.id === 'drop-banner') document.getElementById('drop-banner').style.display = 'none'; });
-window.addEventListener('drop', (e) => { e.preventDefault(); document.getElementById('drop-banner').style.display = 'none'; handleImportedFile(e.dataTransfer.files.item(0)); });
-window.addEventListener('resize', renderCanvas);
-
-function resetStudio() { location.reload(); }
-window.addEventListener('DOMContentLoaded', initStudio);
-
-const STUDIO_EN = {
-    "Кнопка «Обучение (?)»": "Button «Tutorial (?)»",
-    "Фоновый эффект / шейдер:": "Background Effect / Shader:",
-    "Без эффекта (только градиент)": "None (Gradient Only)",
-    "Ретро-сетка (Synthwave)": "Retro Grid (Synthwave)",
-    "Скоростные линии (Speed Lines)": "Speed Lines",
-    "Движущаяся шахматка": "Moving Checkerboardboard",
-    "Золотые искры": "Floating Emerald Sparks",
-    "Игры и пути": "Games & Paths",
-    "Моды": "Mods",
-    "Настройки игры": "Game Tweaks",
-    "Скриншоты": "Screenshots",
-    "Прогресс": "Progress",
-    "Тема": "Theme",
-    "Рулетка • Игра • Сейвы": "Roulette • Game • Saves",
-    "Атмосфера": "Atmosphere",
-    "← → ВЫБОР • ENTER ЗАПУСК • F6 СКРИНШОТ": "← → SELECT • ENTER LAUNCH • F6 SCREENSHOT",
-    "RU • Русский ▾": "EN • English ▾",
-    "Элемент": "Element",
-    "Отпустите .JSON или .SONICPACK файл для загрузки в студию": "Drop .JSON or .SONICPACK file to load into Studio",
-    "Импорт .JSON / .SONICPACK": "Import .JSON / .SONICPACK",
-    "Новый шаблон": "New Template",
-    "Скачать тему (.JSON)": "Download Theme (.JSON)",
-    "Скачать .SONICPACK": "Download .SONICPACK",
-    "Элементы интерфейса (Слои)": "UI Elements (Layers)",
-    "Глобальный стиль темы": "Global Theme Style",
-    "Стиль карточек и кнопок:": "Card & Button Style:",
-    "Спортивный (Скошенный)": "Dynamic (Skewed)",
-    "Console HUD (Строгий)": "Console HUD (Clean)",
-    "Neon Grid": "Neon Grid",
-    "Glassmorphism": "Glassmorphism",
-    "Режим карусели:": "Carousel Mode:",
-    "3D-Круг (Объёмное кольцо)": "3D Circle (Ring)",
-    "Дуга / Колесо": "Arc / Wheel",
-    "Горизонтальный ряд": "Horizontal Row",
-    "Анимация персонажей:": "Character Animation:",
-    "Снизу вверх (плавно)": "Slide Up (Smooth)",
-    "Сбоку (с краёв экрана)": "Slide Side (Edges)",
-    "Плавное проявление (Fade)": "Smooth Fade",
-    "Пружинка (Pop / Scale)": "Spring Pop / Scale",
-    "Скоростной рывок (Dash)": "Speed Dash",
-    "Без анимации": "No Animation",
-    "Цвет текста:": "Text Color:",
-    "Заголовок:": "Title Color:",
-    "Градиент 1:": "Gradient 1:",
-    "Градиент 2:": "Gradient 2:",
-    "Инспектор элемента": "Element Inspector",
-    "Кликните по любому элементу на холсте или в списке слоёв слева": "Click any element on the canvas or in the layers list",
-    "↖ Лево": "↖ Left",
-    "↔ Центр X": "↔ Center X",
-    "↗ Право": "↗ Right",
-    "⬆ Верх": "⬆ Top",
-    "↕ Центр Y": "↕ Center Y",
-    "⬇ Низ": "⬇ Bottom",
-    "Позиция X (%):": "Position X (%):",
-    "Позиция Y (%):": "Position Y (%):",
-    "Текст элемента:": "Element Text:",
-    "Скрыть элемент в теме": "Hide element in theme",
-    "Заголовок лаунчера": "Launcher Header",
-    "Логотип активной игры": "Active Game Logo",
-    "3D-Карусель игр": "3D Games Carousel",
-    "Кнопка «Игры и пути»": "Button «Games & Paths»",
-    "Кнопка «Моды»": "Button «Mods»",
-    "Кнопка «Настройки игры»": "Button «Game Tweaks»",
-    "Кнопка «Скриншоты»": "Button «Screenshots»",
-    "Кнопка «Прогресс»": "Button «Progress»",
-    "Кнопка «Настройки темы»": "Button «Theme Settings»",
-    "Кнопка «В трей»": "Button «Minimize to Tray»",
-    "Кнопка «Выход»": "Button «Exit»",
-    "Верхняя панель (Рулетка / Папки)": "Top Bar (Roulette / Folders)",
-    "Кнопка «Атмосфера и Заставка»": "Button «Intro & Atmosphere»",
-    "Переключатель языка (RU / EN)": "Language Switcher (RU / EN)"
+const TS_DICT = {
+    'Автономный режим': 'Standalone Mode',
+    '● Подключено к лаунчеру': '● Connected to Launcher',
+    '👁 Чистое превью': '👁 Clean Preview',
+    '↻ Загрузить из лаунчера': '↻ Pull from Launcher',
+    '📂 Открыть .JSON': '📂 Open .JSON',
+    '💾 Скачать .JSON': '💾 Download .JSON',
+    '⚡ Применить в лаунчер': '⚡ Apply to Launcher',
+    'Слои': 'Layers',
+    'Кнопки': 'Buttons',
+    'Карусель': 'Carousel',
+    'Фон / FX': 'BG / FX',
+    'Виджеты': 'Widgets',
+    'Быстрый макет экрана': 'Quick Screen Layout',
+    '1. Классический': '1. Classic',
+    '2. Консольный': '2. Console Left',
+    '3. Аркадный': '3. Arcade Bottom',
+    '4. Верхняя панель': '4. Top Bar',
+    '5. Широкая Витрина (Showcase)': '5. Wide Showcase',
+    'Элементы на экране (клик или перетаскивание)': 'Screen Elements (Click or Drag)',
+    'Виден': 'Visible',
+    'Скрыт': 'Hidden',
+    'Заголовок лаунчера': 'Launcher Header',
+    'Панель категорий и полок': 'Categories & Shelves Bar',
+    'Логотип игры': 'Game Logo',
+    'Карусель / Витрина игр': 'Games Carousel / Showcase',
+    'Верхняя панель кнопок': 'Top Quick Bar',
+    'Кнопка Атмосфера': 'Atmosphere Button',
+    'Переключатель языка': 'Language Switcher',
+    'Нижний ряд кнопок': 'Bottom Action Bar',
+    'Кнопка Настройки темы': 'Theme Settings Button',
+    'Кнопки Трей и Выход': 'Tray & Exit Buttons',
+    'Виджет: Часы': 'Widget: Clock',
+    'Виджет: Изумруды': 'Widget: Emeralds',
+    'Виджет: Активность': 'Widget: Activity',
+    'Виджет: Заметка': 'Widget: Game Note',
+    'Включить ручной Конструктор UI': 'Enable Custom UI Builder',
+    'Фон кнопок': 'Button Fill',
+    'Цвет при наведении': 'Button Hover Fill',
+    'Контур кнопок': 'Button Border',
+    'Прозрачность кнопок': 'Button Opacity',
+    'Скругление кнопок (px)': 'Button Radius (px)',
+    'Скос плашек Skew (°)': 'Button Skew (°)',
+    'Типографика и Цвета': 'Typography & Colors',
+    'Цвет заголовка': 'Title Color',
+    'Цвет текста': 'Text Color',
+    'Тень заголовков': 'Title Shadow',
+    'Мягкая объёмная': 'Soft Drop Shadow',
+    'Ретро 16-bit (Жёсткая)': 'Retro 16-bit (Hard)',
+    'Неоновое свечение': 'Neon Glow',
+    'Без тени': 'None',
+    'Разрядка букв (px)': 'Letter Spacing (px)'
 };
 
-const studioOrigNodes = new WeakMap();
-function setStudioLang(lang) {
-    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null);
-    let node;
-    while ((node = walker.nextNode())) {
-        const pTag = node.parentElement?.tagName;
-        if (pTag === 'SCRIPT' || pTag === 'STYLE' || node.parentElement?.closest('#studio-lang')) continue;
-        if (!studioOrigNodes.has(node)) studioOrigNodes.set(node, node.nodeValue);
-        const base = studioOrigNodes.get(node);
-        const trimmed = base.trim();
-        if (lang === 'en') {
-            if (STUDIO_EN[trimmed]) {
-                node.nodeValue = base.replace(trimmed, STUDIO_EN[trimmed]);
-            } else if (base.includes('Ширина 3D-круга (')) {
-                node.nodeValue = base.replace('Ширина 3D-круга (', '3D Circle Width (');
-            } else if (base.includes('Угол / глубина круга (')) {
-                node.nodeValue = base.replace('Угол / глубина круга (', 'Circle Tilt / Depth (');
-            } else if (base.includes('Масштаб (')) {
-                node.nodeValue = base.replace('Масштаб (', 'Scale (');
-            }
-        } else {
-            node.nodeValue = base;
-        }
-    }
-    if (typeof syncInspector === 'function' && selectedHud) syncInspector();
+Object.assign(TS_DICT, {
+    'Режим библиотеки': 'Library Mode',
+    'Классический веер (Cover Flow)': 'Cover Flow',
+    'Дуга / Колесо (Arc)': 'Arc Wheel',
+    'Горизонтальный ряд (Row)': 'Horizontal Row',
+    'Крупная Витрина (Showcase)': 'Hero Showcase',
+    'Плитка всей библиотеки (Grid)': 'Full Library Grid',
+    'Базовый стиль плашек': 'Base Card & Plate Style',
+    'Спортивный (Скошенный)': 'Dynamic (Skewed)',
+    'Ретро Пиксель 16-Bit': 'Retro Pixel 16-Bit',
+    'Матовое стекло': 'Frosted Glass',
+    'Размер карточек (px)': 'Card Width (px)',
+    'Скругление обложек (px)': 'Cover Radius (px)',
+    'Цвет активной рамки': 'Selected Border Color',
+    'Физические 3D-коробки (Box Art)': '3D Physical Boxes (Box Art)',
+    'Включить 3D-боксы для всех игр': 'Enable 3D Boxes for All Games',
+    'Картридж-бокс (Толстый)': 'Cartridge Box (Thick)',
+    'DVD / Консольный кейс': 'DVD / Console Case',
+    'Градиент фона (По умолчанию / Игра 1)': 'Background Gradient',
+    'Цвет 1': 'Color 1',
+    'Цвет 2': 'Color 2',
+    'Светлая тема интерфейса (Light UI)': 'Light UI Mode',
+    'Фоновый шейдер и Пост-обработка': 'Background Shader & Post-FX',
+    'Без шейдера': 'No Shader',
+    'Звёздный варп (Starfield)': 'Starfield Warp',
+    'Геометрия Аркады': 'Arcade Geometry',
+    'Кибер-глитч': 'Cyber Glitch',
+    'Ретро-сетка (Synthwave)': 'Synthwave Grid',
+    'Скоростные линии': 'Speed Lines',
+    'Искры Изумрудов': 'Emerald Sparks',
+    'Экранный фильтр (Screen FX)': 'Screen Filter (Post-FX)',
+    'Без фильтра': 'No Filter',
+    'ЭЛТ-монитор (CRT Scanlines)': 'CRT Scanlines',
+    'Ретро кассета (VHS)': 'Retro VHS',
+    'Кино-виньетка': 'Cinema Vignette',
+    'Пиксельная матрица': 'Pixel Matrix',
+    'Сила фильтра (%)': 'Filter Opacity (%)',
+    'Модульные виджеты экрана': 'Modular Screen Widgets',
+    'Аркадные часы (TIME)': 'Arcade Clock (TIME)',
+    'Сводка Изумрудов профиля': 'Profile Emeralds Summary',
+    'Активность и топ-игра': 'Playtime & Top Game',
+    'Шпаргалка заметки игры': 'Selected Game Note',
+    'Музыкальный плеер Jukebox': 'OST Jukebox Player',
+    'Пробел — Чистый вид': 'Space — Clean View',
+    'Инспектор элемента': 'Element Inspector',
+    'Скрыть этот элемент': 'Hide This Element',
+    '↔ Центр X': '↔ Center X',
+    '↕ Центр Y': '↕ Center Y',
+    'Сбросить все позиции': 'Reset All Positions',
+    'Памятка горячих клавиш': 'Shortcuts Guide',
+    'Рулетка': 'Roulette',
+    'Сейвы': 'Saves',
+    'Гайды': 'Guides',
+    'Профиль': 'Profile',
+    'Атмосфера': 'Atmosphere',
+    'Все игры': 'All Games',
+    'Базовые': 'Core',
+    '+ Полка': '+ Shelf',
+    'Игры и пути': 'Games & Paths',
+    'Моды': 'Mods',
+    'Настройки игры': 'Game Tweaks',
+    'Прогресс': 'Progress',
+    '▶ ИГРАТЬ': '▶ PLAY',
+    'ЗАМЕТКА ИГРЫ': 'GAME NOTE',
+    '← → ВЫБОР • ENTER ЗАПУСК • F11 ПОЛНЫЙ ЭКРАН': '← → SELECT • ENTER PLAY • F11 FULLSCREEN',
+    'Дизайн загружен из лаунчера!': 'Design pulled from Launcher!',
+    '⚡ Мгновенно применено в лаунчер!': '⚡ Applied live to Launcher!',
+    'Файл sonic_studio_theme.json скачан!': 'File sonic_studio_theme.json downloaded!',
+    'Тема загружена в студию!': 'Theme loaded into Studio!'
+});
+
+const TS_REV = {};
+Object.entries(TS_DICT).forEach(p => { TS_REV[p.at(1)] = p.at(0); });
+let tsLang = localStorage.getItem('sgl_studio_lang') || 'ru';
+
+function trStr(s) {
+    if (tsLang === 'en') return TS_DICT[s] || s;
+    return TS_REV[s] || s;
 }
-</script>
-<script>
-/* === STUDIO v2.1 ADDON: NEW SHADERS, SCREEN FX & EXPORT FIELDS === */
-(function() {
-    function mk(tag, cls, css, txt) {
-        const e = document.createElement(tag);
-        if (cls) e.className = cls;
-        if (css) e.style.cssText = css;
-        if (txt !== undefined && txt !== null) e.textContent = txt;
-        return e;
-    }
 
-    function injectStudioFxStyles() {
-        if (document.getElementById('st-fx-css')) return;
-        const st = mk('style', '', '');
-        st.id = 'st-fx-css';
-        const rules = new Array(
-            '#st-screen-fx{position:absolute;inset:0;pointer-events:none;z-index:4;opacity:0.45;}',
-            '#st-screen-fx.fx-none{display:none;}',
-            '#st-screen-fx.fx-crt{background:linear-gradient(rgba(18,16,16,0) 50%,rgba(0,0,0,0.42) 50%),radial-gradient(circle at center,transparent 58%,rgba(0,0,0,0.72) 100%);background-size:100% 4px,100% 100%;}',
-            '#st-screen-fx.fx-halftone{background-image:radial-gradient(rgba(255,215,0,0.28) 1.6px,transparent 1.6px);background-size:14px 14px;}',
-            '#st-screen-fx.fx-cybergrid{background-image:linear-gradient(rgba(56,189,248,0.14) 1px,transparent 1px),linear-gradient(90deg,rgba(56,189,248,0.14) 1px,transparent 1px);background-size:32px 32px;}',
-            '#st-screen-fx.fx-vignette{background:radial-gradient(circle at center,transparent 45%,rgba(0,0,0,0.88) 100%);}',
-            '.st-guide-line{position:absolute;background:#FFD700;pointer-events:none;z-index:990;box-shadow:0 0 8px #FFD700;display:none;}',
-            '#st-guide-v{top:0;bottom:0;width:1px;}',
-            '#st-guide-h{left:0;right:0;height:1px;}',
-            '.st-history-bar{display:flex;gap:6px;margin-bottom:8px;}',
-            '.st-history-btn{flex:1;padding:5px 8px;border-radius:7px;border:1px solid rgba(255,255,255,0.16);background:rgba(255,255,255,0.06);color:#fff;font-size:11px;font-weight:700;cursor:pointer;}',
-            '.st-history-btn:hover{border-color:#FFD700;color:#FFD700;}'
-        );
-        st.textContent = rules.join('\n');
-        document.head.appendChild(st);
-    }
-
-    function findCanvasStage() {
-        const el = document.querySelector('[data-hud="header"]') || document.querySelector('[data-hud]');
-        return el ? el.parentElement : null;
-    }
-
-    function setupStageOverlays() {
-        injectStudioFxStyles();
-        const stage = findCanvasStage();
-        if (!stage || document.getElementById('st-screen-fx')) return;
-
-        const fx = mk('div', 'fx-none', '');
-        fx.id = 'st-screen-fx';
-        const gv = mk('div', 'st-guide-line', '');
-        gv.id = 'st-guide-v';
-        const gh = mk('div', 'st-guide-line', '');
-        gh.id = 'st-guide-h';
-        stage.append(fx, gv, gh);
-    }
-
-    function injectExtraSidebarControls() {
-        const selects = Array.from(document.getElementsByTagName('select'));
-        const shaderSel = selects.find(s => Array.from(s.options).some(o => o.value === 'synthwave'));
-        if (shaderSel) {
-            const curVals = Array.from(shaderSel.options).map(o => o.value);
-            const extras = new Array(
-                { v: 'mania_geo', t: 'Поп-арт геометрия' },
-                { v: 'starfield', t: 'Звёздный полёт (Варп)' },
-                { v: 'cyber_glitch', t: 'Цифровой глитч' }
-            );
-            extras.forEach(it => {
-                if (!curVals.includes(it.v)) {
-                    const o = mk('option', '', '', it.t);
-                    o.value = it.v;
-                    shaderSel.appendChild(o);
-                }
-            });
-        }
-
-        if (!shaderSel || document.getElementById('st-inp-screenFx')) return;
-        const box = mk('div', '', 'margin-top:8px;padding:8px;border-radius:8px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);display:flex;flex-direction:column;gap:6px;');
-
-        const addSelectRow = (labelTxt, id, opts) => {
-            const wrap = mk('div', '', 'display:flex;flex-direction:column;gap:3px;font-size:11px;');
-            wrap.appendChild(mk('span', '', 'opacity:0.8;', labelTxt));
-            const sel = mk('select', shaderSel.className || '', 'width:100%;padding:5px;border-radius:6px;background:#0f172a;color:#fff;border:1px solid rgba(255,255,255,0.16);font-size:11px;');
-            sel.id = id;
-            opts.forEach(it => {
-                const o = mk('option', '', '', it.t);
-                o.value = it.v;
-                sel.appendChild(o);
-            });
-            wrap.appendChild(sel);
-            box.appendChild(wrap);
-            return sel;
-        };
-
-        const fxSel = addSelectRow('Текстурный фильтр (Screen FX):', 'st-inp-screenFx', new Array(
-            { v: 'none', t: 'Без фильтра' },
-            { v: 'crt', t: 'ЭЛТ-сканлайны (CRT)' },
-            { v: 'halftone', t: 'Точечный растр (Halftone)' },
-            { v: 'cybergrid', t: 'Цифровая сетка' },
-            { v: 'vignette', t: 'Кино-виньетка' }
-        ));
-
-        const aspSel = addSelectRow('Формат обложек:', 'st-inp-cardAspect', new Array(
-            { v: 'poster', t: 'Постер (2:3)' },
-            { v: 'square', t: 'Квадратный бокс (1:1)' },
-            { v: 'wide', t: 'Широкий баннер (16:9)' }
-        ));
-
-        const lncSel = addSelectRow('Переход запуска:', 'st-inp-launchAnim', new Array(
-            { v: 'titlecard', t: 'Аркадные ленты' },
-            { v: 'warpring', t: 'Кольцо-портал' },
-            { v: 'crtoff', t: 'Выключение ЭЛТ' },
-            { v: 'flash', t: 'Белая вспышка' }
-        ));
-
-        shaderSel.after(box);
-
-        const syncStudioState = () => {
-            const fxLayer = document.getElementById('st-screen-fx');
-            if (fxLayer) fxLayer.className = 'fx-' + fxSel.value;
-            if (typeof themeState !== 'undefined' && themeState) {
-                themeState.screenFx = fxSel.value;
-                themeState.cardAspect = aspSel.value;
-                themeState.launchAnim = lncSel.value;
-            }
-        };
-        fxSel.onchange = syncStudioState;
-        aspSel.onchange = syncStudioState;
-        lncSel.onchange = syncStudioState;
-    }
-
-    window._initStudioV21Part1 = function() {
-        setupStageOverlays();
-        injectExtraSidebarControls();
-    };
-})();
-</script>
-<script>
-/* === STUDIO v2.1 PART 2: SNAP GUIDES & UNDO / REDO (CTRL+Z / CTRL+Y) === */
-(function() {
-    const undoStack = new Array();
-    const redoStack = new Array();
-    let isRestoring = false;
-
-    function captureSnapshot() {
-        const snap = {};
-        document.querySelectorAll('[data-hud]').forEach(el => {
-            const id = el.getAttribute('data-hud');
-            snap[id] = {
-                left: el.style.left,
-                top: el.style.top,
-                transform: el.style.transform,
-                display: el.style.display
-            };
-        });
-        let rawJson = '';
-        if (typeof themeState !== 'undefined' && themeState) {
-            rawJson = JSON.stringify(themeState);
-        }
-        return JSON.stringify({ dom: snap, state: rawJson });
-    }
-
-    function pushHistory() {
-        if (isRestoring) return;
-        const cur = captureSnapshot();
-        if (undoStack.length > 0 && undoStack.at(-1) === cur) return;
-        undoStack.push(cur);
-        if (undoStack.length > 45) undoStack.shift();
-        redoStack.length = 0;
-    }
-
-    function applySnapshot(snapStr) {
-        if (!snapStr) return;
-        isRestoring = true;
-        try {
-            const parsed = JSON.parse(snapStr);
-            if (parsed.state && typeof themeState !== 'undefined' && themeState) {
-                const stObj = JSON.parse(parsed.state);
-                Object.assign(themeState, stObj);
-            }
-            const domMap = parsed.dom || {};
-            document.querySelectorAll('[data-hud]').forEach(el => {
-                const id = el.getAttribute('data-hud');
-                const rec = domMap[id];
-                if (rec) {
-                    el.style.left = rec.left;
-                    el.style.top = rec.top;
-                    if (rec.transform !== undefined) el.style.transform = rec.transform;
-                    if (rec.display !== undefined) el.style.display = rec.display;
-                }
-            });
-            if (typeof renderAll === 'function') renderAll();
-        } catch (_) {}
-        isRestoring = false;
-    }
-
-    window.studioUndo = function() {
-        if (undoStack.length <= 1) return;
-        const cur = undoStack.pop();
-        redoStack.push(cur);
-        applySnapshot(undoStack.at(-1));
-    };
-
-    window.studioRedo = function() {
-        if (redoStack.length === 0) return;
-        const next = redoStack.pop();
-        undoStack.push(next);
-        applySnapshot(next);
-    };
-
-    function injectUndoRedoBar() {
-        if (document.getElementById('st-undo-bar')) return;
-        const inspectorHdr = Array.from(document.querySelectorAll('h3, h4, .panel-title, div'))
-            .find(el => (el.textContent || '').trim() === 'Инспектор элемента' || (el.textContent || '').trim() === 'Element Inspector');
-        if (!inspectorHdr) return;
-
-        const bar = document.createElement('div');
-        bar.id = 'st-undo-bar';
-        bar.className = 'st-history-bar';
-
-        const bUndo = document.createElement('button');
-        bUndo.type = 'button';
-        bUndo.className = 'st-history-btn';
-        bUndo.textContent = '↶ Отменить (Ctrl+Z)';
-        bUndo.onclick = window.studioUndo;
-
-        const bRedo = document.createElement('button');
-        bRedo.type = 'button';
-        bRedo.className = 'st-history-btn';
-        bRedo.textContent = '↷ Повторить (Ctrl+Y)';
-        bRedo.onclick = window.studioRedo;
-
-        bar.append(bUndo, bRedo);
-        inspectorHdr.after(bar);
-    }
-
-    // Умные магнитные направляющие при перетаскивании [data-hud]
-    let draggedHud = null;
-
-    document.addEventListener('pointerdown', (e) => {
-        const el = e.target.closest('[data-hud]');
-        if (el) {
-            pushHistory();
-            draggedHud = el;
-        }
-    }, true);
-
-    window.addEventListener('pointermove', () => {
-        if (!draggedHud) return;
-        const gv = document.getElementById('st-guide-v');
-        const gh = document.getElementById('st-guide-h');
-        if (!gv || !gh) return;
-
-        const curX = parseFloat(draggedHud.style.left);
-        const curY = parseFloat(draggedHud.style.top);
-        if (isNaN(curX) || isNaN(curY)) return;
-
-        let snapX = null;
-        let snapY = null;
-
-        if (Math.abs(curX - 50) < 1.1) snapX = 50;
-        if (Math.abs(curY - 50) < 1.1) snapY = 50;
-
-        document.querySelectorAll('[data-hud]').forEach(other => {
-            if (other === draggedHud || other.style.display === 'none') return;
-            const ox = parseFloat(other.style.left);
-            const oy = parseFloat(other.style.top);
-            if (!isNaN(ox) && snapX === null && Math.abs(curX - ox) < 0.9) snapX = ox;
-            if (!isNaN(oy) && snapY === null && Math.abs(curY - oy) < 0.9) snapY = oy;
-        });
-
-        if (snapX !== null) {
-            draggedHud.style.left = snapX.toFixed(1) + '%';
-            gv.style.left = snapX.toFixed(1) + '%';
-            gv.style.display = 'block';
-            if (typeof themeState !== 'undefined' && themeState?.customLayout) {
-                const id = draggedHud.getAttribute('data-hud');
-                if (themeState.customLayout[id]) themeState.customLayout[id].x = +snapX.toFixed(1);
-            }
+function translateDomTree() {
+    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null);
+    const nodes = new Array();
+    while (walker.nextNode()) nodes.push(walker.currentNode);
+    nodes.forEach(nd => {
+        if (nd.parentElement && (nd.parentElement.id === 'prev-title' || nd.parentElement.tagName === 'SCRIPT' || nd.parentElement.tagName === 'STYLE')) return;
+        const raw = nd.nodeValue;
+        const trimmed = raw.trim();
+        if (!trimmed) return;
+        if (tsLang === 'en' && TS_DICT[trimmed]) {
+            nd.nodeValue = raw.replace(trimmed, TS_DICT[trimmed]);
+        } else if (tsLang === 'ru' && TS_REV[trimmed]) {
+            nd.nodeValue = raw.replace(trimmed, TS_REV[trimmed]);
+        } else if (tsLang === 'en') {
+            nd.nodeValue = raw.replace('Позиция X (', 'Position X (').replace('Позиция Y (', 'Position Y (').replace('Масштаб (', 'Scale (').replace('Сетка', 'Grid').replace('Привязка 1%', 'Snap 1%').replace('ч. в игре', 'h played');
         } else {
-            gv.style.display = 'none';
-        }
-
-        if (snapY !== null) {
-            draggedHud.style.top = snapY.toFixed(1) + '%';
-            gh.style.top = snapY.toFixed(1) + '%';
-            gh.style.display = 'block';
-            if (typeof themeState !== 'undefined' && themeState?.customLayout) {
-                const id = draggedHud.getAttribute('data-hud');
-                if (themeState.customLayout[id]) themeState.customLayout[id].y = +snapY.toFixed(1);
-            }
-        } else {
-            gh.style.display = 'none';
-        }
-    }, { passive: true });
-
-    window.addEventListener('pointerup', () => {
-        if (draggedHud) {
-            draggedHud = null;
-            const gv = document.getElementById('st-guide-v');
-            const gh = document.getElementById('st-guide-h');
-            if (gv) gv.style.display = 'none';
-            if (gh) gh.style.display = 'none';
-            pushHistory();
+            nd.nodeValue = raw.replace('Position X (', 'Позиция X (').replace('Position Y (', 'Позиция Y (').replace('Scale (', 'Масштаб (').replace('Grid', 'Сетка').replace('Snap 1%', 'Привязка 1%').replace('h played', 'ч. в игре');
         }
     });
+}
 
-    window.addEventListener('keydown', (e) => {
-        if ((e.ctrlKey || e.metaKey) && e.code === 'KeyZ' && !e.shiftKey) {
-            e.preventDefault();
-            window.studioUndo();
-        } else if ((e.ctrlKey || e.metaKey) && (e.code === 'KeyY' || (e.code === 'KeyZ' && e.shiftKey))) {
-            e.preventDefault();
-            window.studioRedo();
-        }
-    });
+function setStudioLang(lang) {
+    tsLang = (lang === 'en') ? 'en' : 'ru';
+    localStorage.setItem('sgl_studio_lang', tsLang);
+    const sel = document.getElementById('ts-lang-sel');
+    if (sel) sel.value = tsLang;
+    const langChip = document.querySelector('[data-hud="lang"] .sim-btn');
+    if (langChip) langChip.textContent = (tsLang === 'en') ? 'EN • English' : 'RU • Русский';
+    buildLayersList();
+    selectLayer(selectedHud);
+    translateDomTree();
+}
 
-    const bootAll = () => {
-        if (typeof window._initStudioV21Part1 === 'function') window._initStudioV21Part1();
-        injectUndoRedoBar();
-        setTimeout(pushHistory, 300);
-    };
-    if (document.readyState === 'loading') window.addEventListener('DOMContentLoaded', bootAll);
-    else bootAll();
-})();
-</script>
-<script>
-/* === STUDIO v2.1 BILINGUAL SYNC (RU <-> EN) === */
-(function() {
-    const PAIRS = new Array(
-        new Array('Текстурный фильтр (Screen FX):', 'Screen Texture Filter (Screen FX):'),
-        new Array('Без фильтра', 'No Filter'),
-        new Array('ЭЛТ-сканлайны (CRT)', 'CRT Scanlines'),
-        new Array('Точечный растр (Halftone)', 'Halftone Dots'),
-        new Array('Цифровая сетка', 'Digital Grid'),
-        new Array('Кино-виньетка', 'Cinema Vignette'),
-        new Array('Формат обложек:', 'Cover Aspect:'),
-        new Array('Постер (2:3)', 'Poster (2:3)'),
-        new Array('Квадратный бокс (1:1)', 'Square Box (1:1)'),
-        new Array('Широкий баннер (16:9)', 'Wide Banner (16:9)'),
-        new Array('Переход запуска:', 'Launch Transition:'),
-        new Array('Аркадные ленты', 'Arcade Ribbons'),
-        new Array('Кольцо-портал', 'Warp Ring'),
-        new Array('Выключение ЭЛТ', 'CRT Turn-Off'),
-        new Array('Белая вспышка', 'White Flash'),
-        new Array('Поп-арт геометрия', 'Pop-Art Geometry'),
-        new Array('Звёздный полёт (Варп)', 'Star Warp Flight'),
-        new Array('Цифровой глитч', 'Digital Glitch'),
-        new Array('Спорт', 'Dynamic'),
-        new Array('Поп-Арт', 'Pop-Art'),
-        new Array('↶ Отменить (Ctrl+Z)', '↶ Undo (Ctrl+Z)'),
-        new Array('↷ Повторить (Ctrl+Y)', '↷ Redo (Ctrl+Y)'),
-        new Array('Музыкальный плеер', 'Music Player'),
-        new Array('SEGA Dynamic (Skewed)', 'Dynamic (Skewed)')
-    );
+const _origBuildLayers = buildLayersList;
+buildLayersList = function() {
+    _origBuildLayers();
+    if (tsLang === 'en') translateDomTree();
+};
 
-    function detectStudioLang() {
-        const selects = Array.from(document.getElementsByTagName('select'));
-        const langSel = selects.find(s => Array.from(s.options).some(o => o.value === 'en' || (o.textContent || '').includes('English')));
-        if (langSel) {
-            const v = (langSel.value || '').toLowerCase();
-            if (v === 'en' || v.includes('en')) return 'en';
-            if (v === 'ru' || v.includes('ru')) return 'ru';
-        }
-        const bodyTxt = document.body ? document.body.innerText : '';
-        return bodyTxt.includes('ELEMENT INSPECTOR') ? 'en' : 'ru';
-    }
+const _origSelectLayer = selectLayer;
+selectLayer = function(id) {
+    _origSelectLayer(id);
+    document.getElementById('insp-name').textContent = trStr(HUD_NAMES[id] || id);
+};
 
-    function applyStudioTranslations() {
-        const lang = detectStudioLang();
-        const fromIdx = (lang === 'en') ? 0 : 1;
-        const toIdx = (lang === 'en') ? 1 : 0;
+const _origToast = toast;
+toast = function(msg) { _origToast(trStr(msg)); };
 
-        const map = new Map();
-        PAIRS.forEach(p => map.set(p.at(fromIdx), p.at(toIdx)));
+setTimeout(() => setStudioLang(tsLang), 30);
 
-        const nodes = document.querySelectorAll('span, option, button, label, div');
-        nodes.forEach(el => {
-            if (el.children.length > 0) return;
-            const raw = (el.textContent || '').trim();
-            if (map.has(raw)) {
-                el.textContent = map.get(raw);
-            }
-        });
-    }
-
-    function bindLangWatcher() {
-        applyStudioTranslations();
-        document.addEventListener('change', (e) => {
-            if (e.target && e.target.tagName === 'SELECT') {
-                setTimeout(applyStudioTranslations, 20);
-            }
-        });
-        setTimeout(applyStudioTranslations, 150);
-        setTimeout(applyStudioTranslations, 500);
-    }
-
-    if (document.readyState === 'loading') window.addEventListener('DOMContentLoaded', bindLangWatcher);
-    else bindLangWatcher();
-})();
 </script>
 </body>
 </html>

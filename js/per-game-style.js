@@ -241,6 +241,16 @@ const _bootPgs = () => {
             };
         }
 
+        const origPrev = window.previewDesign;
+        if (typeof origPrev === 'function' && !window._pgsPrevHooked) {
+            window._pgsPrevHooked = true;
+            window.previewDesign = function() {
+                const r = origPrev.apply(this, arguments);
+                captureBaseIfClean();
+                return r;
+            };
+        }
+
         const origSaveCustom = window.saveAndCloseCustom;
         if (typeof origSaveCustom === 'function') {
             window.saveAndCloseCustom = async function() {

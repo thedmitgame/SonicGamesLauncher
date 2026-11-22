@@ -1,5 +1,5 @@
 import re
-from core.backups import list_save_backups, create_save_backup, restore_save_backup, delete_save_backup, BACKUPS_DIR
+from core.backups import list_save_backups, create_save_backup, create_auto_save_backup, restore_save_backup, delete_save_backup, BACKUPS_DIR
 import webbrowser
 import shlex
 import base64, zipfile, webview, json, os, subprocess
@@ -8,7 +8,7 @@ from datetime import datetime
 from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 
 from core.config import (
-    BASE_DIR, RESOURCE_DIR, CONFIG_FILE, IMAGES_DIR, SOUNDS_DIR,
+    BASE_DIR, RESOURCE_DIR, CONFIG_FILE, IMAGES_DIR, MODELS_DIR, SOUNDS_DIR,
     FONTS_DIR, SCREENSHOTS_DIR, THEMES_DIR, DEFAULT_GAMES, DEFAULT_DESIGN,
     sanitize_filename, cleanup_old_files, load_config, save_config,
     find_asset, scan_all_sounds, find_floating_objects
@@ -18,6 +18,7 @@ from core.codes import get_game_codes, toggle_game_code
 from core.tweaks import get_game_tweaks, save_game_tweaks
 from core.saves import parse_game_progress
 from core.scanner import auto_scan_games
+from core.guides import inspect_game_health
 from core.mod_managers import MANAGER_TYPES, load_mm_paths, save_mm_paths, launch_manager_exe, find_manager_exe, resolve_mods_folder, list_ini_mods, toggle_ini_mod
 from core.gamebanana import fetch_gb_mods, fetch_gb_mod_details, detect_local_game_version
 from core.discord_rpc import discord_rpc
@@ -163,6 +164,13 @@ def monitor_game_session(game_id, proc, minimize, to_tray):
         pt[game_id] = pt.get(game_id, 0) + elapsed
         cfg["playtime"] = pt
         save_config(cfg)
+        dsg_now = cfg.get("design", {})
+        if elapsed >= 5 and dsg_now.get("autoBackupSaves", False):
+            try:
+                lim = max(1, int(dsg_now.get("autoBackupLimit", 5) or 5))
+                create_auto_save_backup(game_id, cfg, max_keep=lim)
+            except Exception:
+                pass
 
     active_game_id = None
     try:
@@ -418,6 +426,16 @@ class LauncherHandler(SimpleHTTPRequestHandler):
             self.send_json({"ok": True, "added": added})
             return
 
+        if parsed.path == '/api/jukebox/delete_track':
+            fname = os.path.basename(payload.get('file', ''))
+            fp = os.path.join(SOUNDS_DIR, 'music', fname)
+            if fname and os.path.isfile(fp):
+                os.remove(fp)
+                self.send_json({'ok': True})
+            else:
+                self.send_json({'ok': False, 'error': 'Файл не найден'})
+            return
+
         if parsed.path == '/api/jukebox/add_track':
             fp = open_native_dialog(filetypes=[('Audio Files', '*.mp3 *.ogg *.wav *.flac *.m4a')])
             if fp and os.path.isfile(fp):
@@ -453,11 +471,11 @@ class LauncherHandler(SimpleHTTPRequestHandler):
                         for member in zf.namelist():
                             if member == 'design.json':
                                 new_design = json.loads(zf.read(member).decode('utf-8'))
-                            elif member.startswith(('images/', 'sounds/', 'fonts/')) and not member.endswith('/'):
+                            elif member.startswith(('images/', 'sounds/', 'fonts/', 'models/')) and not member.endswith('/'):
                                 parts = member.split('/', 1)
                                 p_head = parts.pop(0)
                                 p_tail = parts.pop(0)
-                                dest_dir = IMAGES_DIR if p_head == 'images' else (SOUNDS_DIR if p_head == 'sounds' else FONTS_DIR)
+                                dest_dir = {'images': IMAGES_DIR, 'sounds': SOUNDS_DIR, 'fonts': FONTS_DIR, 'models': MODELS_DIR}.get(p_head, IMAGES_DIR)
                                 os.makedirs(dest_dir, exist_ok=True)
                                 with open(os.path.join(dest_dir, os.path.basename(p_tail)), 'wb') as out_f:
                                     out_f.write(zf.read(member))
@@ -531,6 +549,158 @@ class LauncherHandler(SimpleHTTPRequestHandler):
             except Exception as e:
                 self.send_json({'ok': False, 'error': str(e)})
                 return
+
+        if parsed.path == '/api/assets/pick_3d_or_img':
+            pref = sanitize_filename(payload.get('prefix', 'mesh'))
+            ft = [('3D Models & Images', '*.glb *.obj *.stl *.png *.gif *.webp *.jpg'), ('3D Models (.glb, .obj, .stl)', '*.glb *.obj *.stl'), ('Images (.png, .gif, .webp)', '*.png *.gif *.webp *.jpg')]
+            fp = open_native_dialog(filetypes=ft)
+            if fp and os.path.isfile(fp):
+                _, ext = os.path.splitext(fp)
+                low = ext.lower()
+                is_3d = low in ('.glb', '.obj', '.stl')
+                t_dir = MODELS_DIR if is_3d else IMAGES_DIR
+                u_pre = '/models/' if is_3d else '/images/'
+                os.makedirs(t_dir, exist_ok=True)
+                dname = f'{pref}_{int(time.time() * 1000)}{low}'
+                shutil.copy2(fp, os.path.join(t_dir, dname))
+                self.send_json({'ok': True, 'url': u_pre + dname, 'name': os.path.basename(fp), 'kind': '3d' if is_3d else 'img', 'ext': low})
+            else:
+                self.send_json({'ok': False})
+            return
+
+        if parsed.path == '/api/assets/pick_cursor':
+            slot = sanitize_filename(payload.get('slot', 'default'))
+            ft = [('Cursors & PNG', '*.png *.cur *.ico *.gif *.webp')]
+            fp = open_native_dialog(filetypes=ft)
+            if fp and os.path.isfile(fp):
+                _, ext = os.path.splitext(fp)
+                dname = f'cursor_{slot}_{int(time.time() * 1000)}{ext.lower()}'
+                shutil.copy2(fp, os.path.join(IMAGES_DIR, dname))
+                self.send_json({'ok': True, 'url': f'/images/{dname}', 'name': os.path.basename(fp)})
+            else:
+                self.send_json({'ok': False})
+            return
+
+        if parsed.path == '/api/assets/pick_image':
+            pref = sanitize_filename(payload.get('prefix', 'custom_asset'))
+            fp = open_native_dialog(filetypes=[('Images', '*.png *.gif *.webp *.jpg *.jpeg *.svg')])
+            if fp and os.path.isfile(fp):
+                os.makedirs(IMAGES_DIR, exist_ok=True)
+                _, ext = os.path.splitext(fp)
+                dname = f'{pref}_{int(time.time() * 1000)}{ext.lower()}'
+                shutil.copy2(fp, os.path.join(IMAGES_DIR, dname))
+                self.send_json({'ok': True, 'url': f'/images/{dname}', 'name': os.path.basename(fp)})
+            else:
+                self.send_json({'ok': False})
+            return
+
+        if parsed.path == '/api/variants/save':
+            gid = payload.get('gameId', '')
+            if gid:
+                cfg = load_config()
+                if 'variants' in payload and isinstance(payload['variants'], list):
+                    cfg.setdefault('gameVariants', {})[gid] = payload['variants']
+                if 'installer' in payload:
+                    cfg.setdefault('gameInstallers', {})[gid] = str(payload['installer'] or '').strip()
+                save_config(cfg)
+            self.send_json({'ok': True})
+            return
+
+        if parsed.path == '/api/variants/browse_file':
+            kind = payload.get('kind', 'exe')
+            if kind == 'installer':
+                ft = [('Installer / Archive', '*.exe *.msi *.zip *.7z *.rar'), ('All Files', '*.*')]
+            else:
+                ft = [('Game Executable', '*.exe *.bat *.cmd'), ('All Files', '*.*')]
+            fp = open_native_dialog(filetypes=ft)
+            self.send_json({'ok': bool(fp), 'path': fp.replace('\\', '/') if fp else ''})
+            return
+
+        if parsed.path == '/api/variants/run_installer':
+            gid = payload.get('gameId', '')
+            cfg = load_config()
+            inst_p = cfg.get('gameInstallers', {}).get(gid, '')
+            if not inst_p or not os.path.isfile(inst_p):
+                self.send_json({'ok': False, 'error': 'Файл установщика не найден'})
+                return
+            low = inst_p.lower()
+            if low.endswith(('.exe', '.msi')):
+                os.startfile(os.path.abspath(inst_p))
+                self.send_json({'ok': True, 'mode': 'exec'})
+                return
+            dest_dir = open_native_dialog(is_dir=True)
+            if not dest_dir:
+                self.send_json({'ok': False, 'cancelled': True})
+                return
+            try:
+                if low.endswith('.zip'):
+                    with zipfile.ZipFile(inst_p, 'r') as zf:
+                        zf.extractall(dest_dir)
+                else:
+                    subprocess.run(['tar.exe', '-xf', inst_p, '-C', dest_dir], check=True, creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
+                found_exe = ''
+                for r, _, fs in os.walk(dest_dir):
+                    for fn in fs:
+                        if fn.lower().endswith('.exe') and 'unins' not in fn.lower() and 'crash' not in fn.lower():
+                            found_exe = os.path.join(r, fn).replace('\\', '/')
+                            break
+                    if found_exe: break
+                if found_exe and not cfg.get('paths', {}).get(gid):
+                    cfg.setdefault('paths', {})[gid] = found_exe
+                    save_config(cfg)
+                self.send_json({'ok': True, 'mode': 'extracted', 'exe': found_exe})
+            except Exception as e:
+                self.send_json({'ok': False, 'error': str(e)})
+            return
+
+        if parsed.path == '/api/collections/save':
+            cols = payload.get('collections', [])
+            if isinstance(cols, list):
+                cfg = load_config()
+                cfg['collections'] = cols
+                save_config(cfg)
+            self.send_json({'ok': True})
+            return
+
+        if parsed.path == '/api/window/drag_by':
+            if window_instance:
+                try:
+                    dx = int(payload.get('dx', 0))
+                    dy = int(payload.get('dy', 0))
+                    window_instance.move(window_instance.x + dx, window_instance.y + dy)
+                except Exception:
+                    pass
+            self.send_json({'ok': True})
+            return
+
+        if parsed.path == '/api/window/minidock':
+            enable = bool(payload.get('enable'))
+            if window_instance:
+                try:
+                    u32 = ctypes.windll.user32
+                    sw, sh = u32.GetSystemMetrics(0), u32.GetSystemMetrics(1)
+                    hwnd = u32.FindWindowW(None, 'Sonic Launcher')
+                    if enable:
+                        if hwnd:
+                            st = u32.GetWindowLongW(hwnd, -16)
+                            if not getattr(window_instance, '_orig_style', 0):
+                                window_instance._orig_style = st
+                            u32.SetWindowLongW(hwnd, -16, st & ~0x00CF0000)
+                            u32.SetWindowPos(hwnd, 0, 0, 0, 0, 0, 0x0027)
+                        window_instance.resize(236, 510)
+                        window_instance.move(max(12, sw - 254), max(40, (sh - 510) // 2))
+                        window_instance.on_top = True
+                    else:
+                        window_instance.on_top = False
+                        if hwnd and getattr(window_instance, '_orig_style', 0):
+                            u32.SetWindowLongW(hwnd, -16, window_instance._orig_style)
+                            u32.SetWindowPos(hwnd, 0, 0, 0, 0, 0, 0x0027)
+                        window_instance.resize(1020, 680)
+                        window_instance.move(max(20, (sw - 1020) // 2), max(20, (sh - 680) // 2))
+                except Exception:
+                    pass
+            self.send_json({'ok': True, 'dock': enable})
+            return
 
         if parsed.path == '/api/games/toggle_fav':
             gid = str(payload.get('gameId', '')).strip()
@@ -613,6 +783,18 @@ class LauncherHandler(SimpleHTTPRequestHandler):
             self.send_json({"ok": True})
             return
 
+        if parsed.path == '/api/studio/apply_live':
+            cfg = load_config()
+            merged = dict(cfg.get('design', {}))
+            merged.update(payload)
+            if isinstance(payload.get('gradients'), dict):
+                merged['gradients'] = {**cfg.get('design', {}).get('gradients', {}), **payload['gradients']}
+            cfg['design'] = merged
+            save_config(cfg)
+            LauncherHandler._studio_rev = getattr(LauncherHandler, '_studio_rev', 0) + 1
+            self.send_json({'ok': True, 'rev': LauncherHandler._studio_rev})
+            return
+
         if parsed.path == '/api/design':
             cfg = load_config()
             cfg["design"] = payload
@@ -638,7 +820,7 @@ class LauncherHandler(SimpleHTTPRequestHandler):
 
         elif parsed.path == '/api/gb/open_url':
             url = payload.get("url", "")
-            if url.startswith("https://gamebanana.com"):
+            if url.startswith(("https://gamebanana.com", "https://github.com/thedmitgame/SonicGamesLauncher", "https://github.com", "https://teamforeverdev.github.io", "https://sonic3air.org", "https://sonic3air.org", "https://srb2.org", "https://srb2.org")):
                 webbrowser.open(url)
             self.send_json({"ok": True})
 
@@ -856,7 +1038,7 @@ class LauncherHandler(SimpleHTTPRequestHandler):
             try:
                 with zipfile.ZipFile(pack_path, "w", zipfile.ZIP_DEFLATED) as zf:
                     zf.writestr("design.json", json.dumps(design_obj, ensure_ascii=False, indent=4))
-                    for folder_name, folder_path in [("images", IMAGES_DIR), ("sounds", SOUNDS_DIR), ("fonts", FONTS_DIR)]:
+                    for folder_name, folder_path in [("images", IMAGES_DIR), ("sounds", SOUNDS_DIR), ("fonts", FONTS_DIR), ("models", MODELS_DIR)]:
                         if os.path.isdir(folder_path):
                             for fn in os.listdir(folder_path):
                                 full_p = os.path.join(folder_path, fn)
@@ -883,11 +1065,12 @@ class LauncherHandler(SimpleHTTPRequestHandler):
                     for member in zf.namelist():
                         if member == "design.json":
                             new_design = json.loads(zf.read(member).decode("utf-8"))
-                        elif member.startswith(("images/", "sounds/", "fonts/")) and not member.endswith("/"):
+                        elif member.startswith(("images/", "sounds/", "fonts/", "models/")) and not member.endswith("/"):
                             parts = member.split("/", 1)
-                            dest_dir = IMAGES_DIR if parts[0] == "images" else (SOUNDS_DIR if parts[0] == "sounds" else FONTS_DIR)
+                            p_head = parts.pop(0)
+                            dest_dir = {"images": IMAGES_DIR, "sounds": SOUNDS_DIR, "fonts": FONTS_DIR, "models": MODELS_DIR}.get(p_head, IMAGES_DIR)
                             os.makedirs(dest_dir, exist_ok=True)
-                            dest_file = os.path.join(dest_dir, os.path.basename(parts[1]))
+                            dest_file = os.path.join(dest_dir, os.path.basename(parts.pop(0)))
                             with open(dest_file, "wb") as out_f:
                                 out_f.write(zf.read(member))
                 os.remove(tmp_pack)
@@ -935,6 +1118,21 @@ class LauncherHandler(SimpleHTTPRequestHandler):
             return
         query = urllib.parse.parse_qs(parsed.query)
 
+        if parsed.path == '/api/playtime_ping':
+            cfg = load_config()
+            self.send_json({'playtime': cfg.get('playtime', {}), 'runningId': active_game_id})
+            return
+
+        if parsed.path == '/api/backups/list':
+            gid = get_query_param(query, 'id')
+            self.send_json(list_save_backups(gid))
+            return
+
+        if parsed.path == '/api/guides/check':
+            gid = get_query_param(query, 'id') or 'sonic1'
+            self.send_json(inspect_game_health(gid, load_config()))
+            return
+
         if parsed.path == '/api/games':
             cfg = load_config()
             games_order = cfg.get("gamesOrder", DEFAULT_GAMES)
@@ -952,9 +1150,14 @@ class LauncherHandler(SimpleHTTPRequestHandler):
                     emu_obj = next((e for e in cfg.get("emulators", []) if e["id"] == emu_id), None)
                     exists = bool(p and os.path.exists(p) and emu_obj and os.path.exists(emu_obj.get("path", "")))
                 else:
-                    exists = bool(p and os.path.exists(p))
+                    v_list = cfg.get("gameVariants", {}).get(gid, [])
+                    inst_p = cfg.get("gameInstallers", {}).get(gid, "")
+                    has_alt = any(v.get("path") and os.path.isfile(v.get("path")) for v in v_list)
+                    exists = bool((p and os.path.exists(p)) or has_alt or (inst_p and os.path.isfile(inst_p)))
                 result.append({
                     **g,
+                    "variants": cfg.get("gameVariants", {}).get(gid, []),
+                    "installer": cfg.get("gameInstallers", {}).get(gid, ""),
                     "path": p,
                     "args": args_map.get(gid, ""),
                     "exists": exists,
@@ -973,6 +1176,7 @@ class LauncherHandler(SimpleHTTPRequestHandler):
                 "games": result,
                 "smmPath": cfg.get("smmPath", ""),
                 "emulators": cfg.get("emulators", []),
+                "collections": cfg.get("collections", []),
                 "mainLogo": find_asset(IMAGES_DIR, "/images", "mainlogo", img_exts),
                 "objects": find_floating_objects(),
                 "sounds": scan_all_sounds(),
@@ -1015,15 +1219,15 @@ class LauncherHandler(SimpleHTTPRequestHandler):
             else:
                 self.send_json({"ok": False, "error": "Папка не найдена"})
 
+        elif parsed.path == '/api/studio/ping':
+            self.send_json({'rev': getattr(LauncherHandler, '_studio_rev', 0)})
+            return
+
         elif parsed.path == '/api/open_studio':
-            cand1 = os.path.join(BASE_DIR, 'ThemeStudio.html')
-            cand2 = os.path.join(RESOURCE_DIR, 'ThemeStudio.html')
-            target = cand1 if os.path.isfile(cand1) else (cand2 if os.path.isfile(cand2) else '')
-            if target:
-                os.startfile(target)
-                self.send_json({'ok': True})
-            else:
-                self.send_json({'ok': False, 'error': 'Файл ThemeStudio.html не найден рядом с лаунчером'})
+            port = self.server.server_port
+            webbrowser.open(f'http://127.0.0.1:{port}/ThemeStudio.html')
+            self.send_json({'ok': True})
+            return
 
         elif parsed.path == '/api/sgdb/open':
             q = urllib.parse.quote(get_query_param(query, 'q').strip() or 'Sonic')
@@ -1092,7 +1296,7 @@ class LauncherHandler(SimpleHTTPRequestHandler):
 
         elif parsed.path == '/api/hmm/autoscan':
             cfg = load_config()
-            found = find_hedgemodmanager_exe(cfg)
+            found = find_manager_exe('hmm', cfg)
             if found:
                 cfg['smmPath'] = found
                 save_config(cfg)
@@ -1338,9 +1542,27 @@ class LauncherHandler(SimpleHTTPRequestHandler):
             if fname and os.path.isfile(fp):
                 ext = os.path.splitext(fp)[-1].lower()
                 mime_map = {'.mp3': 'audio/mpeg', '.ogg': 'audio/ogg', '.wav': 'audio/wav', '.flac': 'audio/flac', '.m4a': 'audio/mp4'}
+                fsize = os.path.getsize(fp)
+                rng = self.headers.get('Range', '')
+                if rng.startswith('bytes='):
+                    p1, _, p2 = rng[6:].partition('-')
+                    sb = int(p1) if p1.isdigit() else 0
+                    eb = min(int(p2) if p2.isdigit() else fsize - 1, fsize - 1)
+                    if 0 <= sb <= eb:
+                        ln = eb - sb + 1
+                        self.send_response(206)
+                        self.send_header('Content-Type', mime_map.get(ext, 'audio/mpeg'))
+                        self.send_header('Accept-Ranges', 'bytes')
+                        self.send_header('Content-Range', f'bytes {sb}-{eb}/{fsize}')
+                        self.send_header('Content-Length', str(ln))
+                        self.end_headers()
+                        with open(fp, 'rb') as af:
+                            af.seek(sb)
+                            self.wfile.write(af.read(ln))
+                        return
                 self.send_response(200)
                 self.send_header('Content-Type', mime_map.get(ext, 'audio/mpeg'))
-                self.send_header('Content-Length', str(os.path.getsize(fp)))
+                self.send_header('Content-Length', str(fsize))
                 self.send_header('Accept-Ranges', 'bytes')
                 self.end_headers()
                 with open(fp, 'rb') as af:
@@ -1362,7 +1584,7 @@ class LauncherHandler(SimpleHTTPRequestHandler):
             for fn in sorted(os.listdir(music_dir)):
                 stem, ext = os.path.splitext(fn)
                 if ext.lower() in valid_exts:
-                    tracks.append({"title": stem.replace("_", " "), "url": f"/api/jukebox/stream?src=music&f={urllib.parse.quote(fn)}"})
+                    tracks.append({"title": stem.replace("_", " "), "file": fn, "url": f"/api/jukebox/stream?src=music&f={urllib.parse.quote(fn)}"})
             self.send_json({"tracks": tracks})
             return
 
@@ -1468,6 +1690,27 @@ class LauncherHandler(SimpleHTTPRequestHandler):
             self.send_json({'ok': True})
             return
 
+        elif parsed.path == '/api/challenges/stats':
+            cfg = load_config()
+            total_mods = 0
+            for g in cfg.get('gamesOrder', []):
+                gid = g.get('id', '')
+                if cfg.get('paths', {}).get(gid):
+                    try:
+                        total_mods += len(get_game_mods(gid, cfg).get('mods', []))
+                    except Exception:
+                        pass
+            total_shots = 0
+            if os.path.isdir(SCREENSHOTS_DIR):
+                for _, _, fs in os.walk(SCREENSHOTS_DIR):
+                    total_shots += sum(1 for fn in fs if fn.lower().endswith(('.png', '.jpg')))
+            self.send_json({
+                'modsCount': total_mods,
+                'shotsCount': total_shots,
+                'shelvesCount': len(cfg.get('collections', []))
+            })
+            return
+
         elif parsed.path == '/api/favorites':
             self.send_json({'favorites': read_fav_list()})
             return
@@ -1504,13 +1747,19 @@ class LauncherHandler(SimpleHTTPRequestHandler):
 
         elif parsed.path == '/api/launch':
             game_id = get_query_param(query, 'id')
+            var_id = get_query_param(query, 'var')
             cfg = load_config()
             target_path = cfg["paths"].get(game_id)
+            raw_args = cfg.get("launchArgs", {}).get(game_id, "").strip()
+            if var_id and var_id != "primary":
+                v_obj = next((v for v in cfg.get("gameVariants", {}).get(game_id, []) if v.get("id") == var_id), None)
+                if v_obj and v_obj.get("path") and os.path.isfile(v_obj.get("path")):
+                    target_path = v_obj["path"]
+                    raw_args = str(v_obj.get("args", "")).strip()
             g_meta = next((g for g in cfg.get("gamesOrder", []) if g.get("id") == game_id), {})
             emu_id = g_meta.get("emuId")
 
             if target_path and os.path.exists(target_path) and active_game_id is None:
-                raw_args = cfg.get("launchArgs", {}).get(game_id, "").strip()
                 extra_args = shlex.split(raw_args, posix=False) if raw_args else []
                 if emu_id:
                     emu = next((e for e in cfg.get("emulators", []) if e.get("id") == emu_id), None)

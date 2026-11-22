@@ -91,15 +91,20 @@
         };
 
         addBtn(ICONS.play, 'Запустить игру', () => triggerGameLaunch(game));
+        addBtn('<svg class="btn-svg-icon" viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>', 'Версии и сборки', () => { if (typeof openGameVariantsModal === 'function') openGameVariantsModal(game.id); });
         addBtn('<svg class="btn-svg-icon" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>', (typeof isGameFavorite === 'function' ? isGameFavorite(game.id) : game.favorite) ? 'Убрать из избранного' : 'В избранное ★', () => { if (typeof toggleGameFavorite === 'function') toggleGameFavorite(game.id); });
         addBtn('<svg class="btn-svg-icon" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>', 'Заметки и чит-коды', () => { if (typeof openGameNotesModal === 'function') openGameNotesModal(game.id); });
+        addBtn('<svg class="btn-svg-icon" viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>', 'Полки (Коллекции)', () => { if (typeof openCollectionsModal === 'function') openCollectionsModal('', game.id); });
         addSep();
         if (hasModsAndTweaks) {
             addBtn(ICONS.mods, 'Моды', () => openModsModal());
             addBtn(ICONS.tweaks, 'Настройки игры', () => openTweaksModal());
         }
         addBtn(ICONS.prog, 'Прогресс', () => openProgressModal());
+        addBtn('<svg class="btn-svg-icon" viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>', 'Гайд и обновления', () => { if (typeof openGuidesHubModal === 'function') openGuidesHubModal(game.id); });
         addBtn(ICONS.shots, 'Скриншоты', () => openShotsModal());
+        addBtn('<svg class="btn-svg-icon" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>', '3D-коробка игры', () => { if (typeof openBox3dModal === 'function') openBox3dModal(game.id); });
+        addBtn('<svg class="btn-svg-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><circle cx="19" cy="5" r="2"/><circle cx="5" cy="19" r="2"/></svg>', 'Декор обложки', () => { if (typeof openCardDecorModal === 'function') openCardDecorModal(game.id); });
         addBtn('<svg class="btn-svg-icon" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>', 'Стиль этой игры', () => { if (typeof openPerGameStyleModal === 'function') openPerGameStyleModal(game.id); });
         addSep();
         addBtn(ICONS.folder, 'Открыть папку игры', async () => {

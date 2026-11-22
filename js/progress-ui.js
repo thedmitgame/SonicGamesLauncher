@@ -216,7 +216,22 @@ function openGameBackupsFolder() {
             bDel.textContent = '×'; bDel.title = 'Удалить бэкап'; bDel.onclick = deleteGameSaveBackup;
             row2.append(sel, bRes, bDel);
 
-            bar.append(row1, row2);
+            const row3 = document.createElement('label');
+            row3.style.cssText = 'display:flex;align-items:center;gap:7px;font-size:11px;opacity:0.88;cursor:pointer;margin-top:2px;';
+            const autoChk = document.createElement('input');
+            autoChk.type = 'checkbox';
+            autoChk.style.accentColor = '#4ADE80';
+            autoChk.checked = Boolean(typeof currentDesign !== 'undefined' && currentDesign?.autoBackupSaves);
+            autoChk.onchange = async () => {
+                if (typeof currentDesign === 'undefined' || !currentDesign) return;
+                currentDesign.autoBackupSaves = autoChk.checked;
+                await fetch('/api/design', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(currentDesign) });
+                if (typeof showToast === 'function') showToast(autoChk.checked ? 'Авто-бэкап сейвов включён' : 'Авто-бэкап сейвов выключен');
+            };
+            const autoTxt = document.createElement('span');
+            autoTxt.textContent = 'Автоматически сохранять копию при выходе из игры';
+            row3.append(autoChk, autoTxt);
+            bar.append(row1, row2, row3);
             box.prepend(bar);
             await refreshBackupsBar(activeGame.id);
         };

@@ -128,3 +128,21 @@ def delete_save_backup(game_id, file_name):
         os.remove(zp)
         return {"ok": True}
     return {"ok": False, "error": "Файл не найден"}
+
+
+def create_auto_save_backup(game_id, cfg, max_keep=5):
+    res = create_save_backup(game_id, cfg, note='auto')
+    if not res.get('ok'):
+        return res
+    g_dir = os.path.join(BACKUPS_DIR, sanitize_filename(game_id))
+    if os.path.isdir(g_dir) and max_keep > 0:
+        auto_zips = sorted(
+            [fn for fn in os.listdir(g_dir) if fn.lower().endswith('_auto.zip')],
+            reverse=True
+        )
+        for old_fn in auto_zips[max_keep:]:
+            try:
+                os.remove(os.path.join(g_dir, old_fn))
+            except Exception:
+                pass
+    return res

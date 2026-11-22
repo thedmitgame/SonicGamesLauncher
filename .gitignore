@@ -1,14 +1,20 @@
 # Сборка и кэш Python
 build/
 dist/
-release_v1.2.0/
 __pycache__/
-*.pyc
-rsdk_cache/
+*.py[cod]
+*.spec
 
-# Пользовательские данные и локальные пути
+# Пользовательские данные и конфиги
 sonic_launcher_config.json
 favorites.json
 mod_managers.json
-backups/*
-screenshots/*
+rsdk_cache/
+backups/
+screenshots/
+images/
+models/
+sounds/
+videos/
+fonts/
+themes/

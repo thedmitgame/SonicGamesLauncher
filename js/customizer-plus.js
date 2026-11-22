@@ -2,7 +2,7 @@
 (function() {
     const PRESETS = {
         sega_blue: {
-            label: "SEGA Dynamic",
+            label: "Спорт-Динамика",
             bg: ["#041436", "#0066ff"],
             patch: {
                 screenLayout: "classic", cardStyle: "sega", shaderType: "speedlines",
@@ -11,7 +11,7 @@
             }
         },
         mania_encore: {
-            label: "Mania Encore",
+            label: "Аркадное Ретро",
             bg: ["#2e1005", "#f59e0b"],
             patch: {
                 screenLayout: "arcade_bottom", cardStyle: "retro", shaderType: "checker",
@@ -115,15 +115,12 @@
                 bar.id = 'sgl-quick-presets';
                 bar.style.cssText = 'background:rgba(0,0,0,0.28);padding:8px 10px;border-radius:10px;margin-bottom:10px;display:flex;flex-direction:column;gap:6px;';
                 bar.innerHTML = `
-                    <div style="display:flex;justify-content:space-between;align-items:center;font-size:11.5px;">
-                        <b style="color:#FFD700;">Готовые стили в 1 клик:</b>
-                        <div style="display:flex;gap:5px;"><button type="button" class="btn-small" onclick="enterHudEditor()">Редактор HUD (F2)</button><button type="button" class="btn-small btn-accent" onclick="openExternalThemeStudio()">Открыть Theme Studio</button></div>
-                    </div>
-                    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:5px;">
-                        <button type="button" class="btn-small" onclick="applyQuickStudioPreset('sega_blue')">SEGA</button>
-                        <button type="button" class="btn-small" onclick="applyQuickStudioPreset('mania_encore')">Mania</button>
-                        <button type="button" class="btn-small" onclick="applyQuickStudioPreset('cyber_neon')">Synthwave</button>
-                        <button type="button" class="btn-small" onclick="applyQuickStudioPreset('dreamcast_clean')">Console</button>
+                    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;font-size:11.5px;">
+                        <b style="color:#FFD700;">Инструменты макета и HUD:</b>
+                        <div style="display:flex;gap:6px;flex:1;justify-content:flex-end;">
+                            <button type="button" class="btn-small" onclick="enterHudEditor()">Редактор HUD (F2)</button>
+                            <button type="button" class="btn-small btn-accent" onclick="openExternalThemeStudio()">Открыть Theme Studio</button>
+                        </div>
                     </div>
                 `;
                 ioBar.after(bar);

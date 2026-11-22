@@ -146,6 +146,13 @@ function syncControlsFromDesign() {
         if (tiltChk) tiltChk.checked = (currentDesign.cardTilt3d ?? true);
     }
 
+    function clearAllInactiveTilts() {
+        activeHoveredCard = null;
+        document.querySelectorAll('.game-card:not(.selected) .cover-box').forEach(b => {
+            b.style.transform = '';
+        });
+    }
+
     function resetCardTilt(card) {
         if (!card) return;
         const box = card.querySelector('.cover-box');
@@ -159,7 +166,7 @@ function syncControlsFromDesign() {
             return;
         }
         const card = e.target.closest('.game-card.selected');
-        if (!card) {
+        if (!card || card.classList.contains('has-box3d')) {
             if (activeHoveredCard) { resetCardTilt(activeHoveredCard); activeHoveredCard = null; }
             return;
         }
@@ -222,6 +229,15 @@ function syncControlsFromDesign() {
             };
         }
 
+        const origSelTilt = window.selectGame;
+        if (typeof origSelTilt === 'function' && !window._tiltResetHooked) {
+            window._tiltResetHooked = true;
+            window.selectGame = function() {
+                const r = origSelTilt.apply(this, arguments);
+                clearAllInactiveTilts();
+                return r;
+            };
+        }
         setTimeout(window.applyVisualFxPack, 400);
     };
     if (document.readyState === 'loading') window.addEventListener('DOMContentLoaded', _initFx); else _initFx();

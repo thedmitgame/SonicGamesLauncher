@@ -1,167 +1,233 @@
-import os, sys, re, json
+import os, sys, json, re, time
 
 if getattr(sys, 'frozen', False):
     BASE_DIR = os.path.dirname(sys.executable)
-    RESOURCE_DIR = sys._MEIPASS
+    RESOURCE_DIR = getattr(sys, '_MEIPASS', BASE_DIR)
 else:
     BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     RESOURCE_DIR = BASE_DIR
 
-def sanitize_filename(name):
-    return re.sub(r'[\\/*?:"<>|]', "_", str(name)).strip() or "sonic_theme_pack"
+CONFIG_FILE = os.path.join(BASE_DIR, 'sonic_launcher_config.json')
+IMAGES_DIR = os.path.join(BASE_DIR, 'images')
+MODELS_DIR = os.path.join(BASE_DIR, 'models')
+VIDEOS_DIR = os.path.join(BASE_DIR, 'videos')
+SOUNDS_DIR = os.path.join(BASE_DIR, 'sounds')
+FONTS_DIR = os.path.join(BASE_DIR, 'fonts')
+SCREENSHOTS_DIR = os.path.join(BASE_DIR, 'screenshots')
+THEMES_DIR = os.path.join(BASE_DIR, 'themes')
+
+for _d in (IMAGES_DIR, MODELS_DIR, VIDEOS_DIR, SOUNDS_DIR, FONTS_DIR, SCREENSHOTS_DIR, THEMES_DIR):
+    os.makedirs(_d, exist_ok=True)
+
+DEFAULT_GAMES = [
+    {"id": "sonic1", "name": "Sonic 1 Forever", "tag": "1991 • REMASTER", "color": "#0066FF"},
+    {"id": "sonic2", "name": "Sonic 2 Absolute", "tag": "1992 • REMASTER", "color": "#FF9900"},
+    {"id": "soniccd", "name": "Sonic CD Restored", "tag": "1993 • REMASTER", "color": "#E6007E"},
+    {"id": "sonic3", "name": "Sonic 3 A.I.R.", "tag": "1994 • WIDESCREEN", "color": "#CC0000"},
+    {"id": "mania", "name": "Sonic Mania", "tag": "2017 • PLUS", "color": "#FFD700"},
+    {"id": "srb2", "name": "Sonic Robo Blast 2", "tag": "3D • OPEN SOURCE", "color": "#00CC66"},
+    {"id": "sadx", "name": "Sonic Adventure DX", "tag": "2004 • DREAMCAST ERA", "color": "#0088FF"}
+]
+DEFAULT_GAMES_ORDER = DEFAULT_GAMES
+
+DEFAULT_DESIGN = {
+    "gradients": {
+        "default": [
+            "#090d16",
+            "#0d2b6b"
+        ],
+        "sonic1": [
+            "#041436",
+            "#0066FF"
+        ],
+        "sonic2": [
+            "#331900",
+            "#FF8800"
+        ],
+        "soniccd": [
+            "#2b051e",
+            "#E6007E"
+        ],
+        "sonic3": [
+            "#330000",
+            "#CC0000"
+        ],
+        "origins": [
+            "#0c1445",
+            "#3b82f6"
+        ],
+        "mania": [
+            "#332600",
+            "#E6AC00"
+        ],
+        "srb2": [
+            "#002b16",
+            "#00B359"
+        ],
+        "sadx": [
+            "#001f4d",
+            "#0088FF"
+        ]
+    },
+    "cardWidth": 200,
+    "cardRadius": 14,
+    "cardAspect": "poster",
+    "logoHeight": 75,
+    "fontScale": 100,
+    "btnScale": 100,
+    "carouselY": 0,
+    "carouselRadiusX": 100,
+    "carouselRadiusY": 34,
+    "backdropOpacity": 55,
+    "backdropBlur": 4,
+    "panelAlpha": 45,
+    "textColor": "#ffffff",
+    "titleColor": "#FFD700",
+    "cardStyle": "glass",
+    "carouselMode": "coverflow",
+    "screenLayout": "classic",
+    "headerPos": "center",
+    "mainTitleStr": "SONIC LAUNCHER",
+    "shaderType": "none",
+    "screenFx": "none",
+    "screenFxOpacity": 50,
+    "launchAnim": "titlecard",
+    "sfxVolume": 70,
+    "bgmVolume": 40,
+    "objCount": 14,
+    "objSpeed": 5,
+    "objOpacity": 35,
+    "enableParallax": True,
+    "enableEq": True,
+    "liteMode": False,
+    "lightUi": False,
+    "showJukebox": True,
+    "autoBackupSaves": False,
+    "autoBackupLimit": 5,
+    "minimizeOnLaunch": True,
+    "minimizeToTray": False,
+    "screenshotKey": "f6",
+    "discordRpc": True,
+    "discordClientId": "",
+    "customFontUrl": "",
+    "customFontName": "",
+    "appIconUrl": "",
+    "appIconName": "",
+    "charAnim": "slide_up",
+    "customLayout": {},
+    "buttons": {},
+    "hudWidgets": {
+        "clock": False,
+        "emeralds": False,
+        "playtime": False,
+        "notes": False
+    },
+    "perGameStyle": {},
+    "cardDecor": {},
+    "box3d": {},
+    "uiModelSlots": {},
+    "uiThemeBuilder": {},
+    "trophyMuseum": [],
+    "characters": {}
+}
+
+def sanitize_filename(s):
+    return re.sub(r'[^a-zA-Z0-9_-]', '', str(s))[:40] or "custom"
 
 def cleanup_old_files(folder, prefix):
+    if not os.path.isdir(folder):
+        return
     for fn in os.listdir(folder):
-        if fn.startswith(prefix):
+        if fn.lower().startswith(prefix.lower()):
             try:
                 os.remove(os.path.join(folder, fn))
             except Exception:
                 pass
-CONFIG_FILE = os.path.join(BASE_DIR, "sonic_launcher_config.json")
-IMAGES_DIR = os.path.join(BASE_DIR, "images")
-SOUNDS_DIR = os.path.join(BASE_DIR, "sounds")
-FONTS_DIR = os.path.join(BASE_DIR, "fonts")
-SCREENSHOTS_DIR = os.path.join(BASE_DIR, "screenshots")
-THEMES_DIR = os.path.join(BASE_DIR, "themes")
 
-for folder in (IMAGES_DIR, SOUNDS_DIR, FONTS_DIR, SCREENSHOTS_DIR, THEMES_DIR):
-    os.makedirs(folder, exist_ok=True)
-
-DEFAULT_GAMES = [
-    {"id": "sonic1", "name": "Sonic 1 Forever", "color": "#1E90FF", "tag": "1991 • REMASTER"},
-    {"id": "sonic2", "name": "Sonic 2 Absolute", "color": "#FF8C00", "tag": "1992 • REMASTER"},
-    {"id": "soniccd", "name": "Sonic CD Restored", "color": "#FF69B4", "tag": "1993 • REMASTER"},
-    {"id": "sonic3", "name": "Sonic 3 A.I.R.", "color": "#DC143C", "tag": "1994 • WIDESCREEN"},
-    {"id": "origins", "name": "Sonic Origins", "color": "#2E8B57", "tag": "COLLECTION"},
-    {"id": "mania", "name": "Sonic Mania", "color": "#F59E0B", "tag": "2017 • PLUS"},
-    {"id": "srb2", "name": "Sonic Robo Blast 2", "color": "#3B82F6", "tag": "3D FAN GAME"}
-]
-
-DEFAULT_DESIGN = {
-    "cardWidth": 210,
-    "cardRadius": 14,
-    "cardStyle": "glass",
-    "shaderType": "none",
-    "screenFx": "none",
-    "screenFxOpacity": 45,
-    "cardTilt3d": True,
-    "cardAspect": "poster",
-    "launchAnim": "titlecard",
-    "clickFx": "rings",
-    "logoHeight": 75,
-    "fontFamily": "'Segoe UI', Roboto, Arial, sans-serif",
-    "customFontUrl": "",
-    "customFontName": "",
-    "fontScale": 100,
-    "textColor": "#ffffff",
-    "titleColor": "#FFD700",
-    "backdropOpacity": 55,
-    "backdropBlur": 4,
-    "objOpacity": 45,
-    "objCount": 14,
-    "objSpeed": 5,
-    "sfxVolume": 70,
-    "bgmVolume": 40,
-    "minimizeOnLaunch": True,
-    "minimizeToTray": False,
-    "appIconUrl": "",
-    "appIconName": "",
-    "screenshotKey": "f6",
-    "discordRpc": True,
-    "showJukebox": True,
-    "discordClientId": "",
-    "characters": {},
-    "perGameStyle": {},
-    "customLayout": {},
-    "gradients": {
-        "default": ["#090d16", "#0d2b6b"],
-        "sonic1": ["#041e42", "#0077ff"],
-        "sonic2": ["#2b1100", "#ff7700"],
-        "soniccd": ["#1a1446", "#d63384"],
-        "sonic3": ["#091d42", "#c8102e"],
-        "origins": ["#072617", "#1e8e54"],
-        "mania": ["#2e1503", "#f59e0b"],
-        "srb2": ["#081c38", "#2563eb"]
-    }
-}
-
-
-def load_config():
-    if os.path.exists(CONFIG_FILE):
-        try:
-            with open(CONFIG_FILE, "r", encoding="utf-8") as f:
-                data = json.load(f)
-                if "paths" not in data:
-                    return {
-                        "gamesOrder": DEFAULT_GAMES, "paths": data, "launchArgs": {},
-                        "modPaths": {}, "modPresets": {}, "smmPath": "", "emulators": [], "srb2Mods": [], "gbIds": {}, "sgdbApiKey": "",
-                        "playtime": {},
-        "favorites": [],
-        "gameNotes": {}, "design": DEFAULT_DESIGN
-                    }
-                saved_order = data.get("gamesOrder", DEFAULT_GAMES)
-                known_ids = {g.get("id") for g in saved_order}
-                for dg in DEFAULT_GAMES:
-                    if dg["id"] not in known_ids:
-                        saved_order.append(dg)
-                design = {**DEFAULT_DESIGN, **data.get("design", {})}
-                design["gradients"] = {**DEFAULT_DESIGN["gradients"], **design.get("gradients", {})}
-                return {
-                    "gamesOrder": saved_order,
-                    "paths": data.get("paths", {}),
-                    "launchArgs": data.get("launchArgs", {}),
-                    "modPaths": data.get("modPaths", {}),
-                    "modPresets": data.get("modPresets", {}),
-                    "smmPath": data.get("smmPath", ""),
-                    "emulators": data.get("emulators", []),
-                    "srb2Mods": data.get("srb2Mods", []),
-                    "gbIds": data.get("gbIds", {}),
-                    "sgdbApiKey": data.get("sgdbApiKey", ""),
-                    "playtime": data.get("playtime", {}),
-                    "design": design,
-                    "intro_enabled": data.get("intro_enabled", False),
-                    "intro_media_path": data.get("intro_media_path", ""),
-                    "daytime_fx": data.get("daytime_fx", True),
-                    "daytime_override": data.get("daytime_override", "auto"),
-                    "lang": data.get("lang", "ru")
-                }
-        except Exception:
-            pass
-    return {
-        "gamesOrder": DEFAULT_GAMES, "paths": {}, "launchArgs": {},
-        "modPaths": {}, "modPresets": {}, "smmPath": "", "emulators": [], "srb2Mods": [], "gbIds": {}, "sgdbApiKey": "",
-        "playtime": {}, "design": DEFAULT_DESIGN
-    }
-
-def save_config(data):
-    with open(CONFIG_FILE, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=4, ensure_ascii=False)
-
-def find_asset(folder, url_prefix, name, extensions):
-    for ext in extensions:
-        filename = f"{name}{ext}"
-        if os.path.exists(os.path.join(folder, filename)):
-            return f"{url_prefix}/{filename}"
+def find_asset(folder, url_prefix, stem_name, exts):
+    if not os.path.isdir(folder):
+        return None
+    low_stem = stem_name.lower()
+    for ext in exts:
+        cand = os.path.join(folder, low_stem + ext)
+        if os.path.isfile(cand):
+            mtime = int(os.path.getmtime(cand))
+            return f"{url_prefix}/{os.path.basename(cand)}?t={mtime}"
+    for fn in os.listdir(folder):
+        st, ex = os.path.splitext(fn)
+        if st.lower() == low_stem and ex.lower() in exts:
+            fp = os.path.join(folder, fn)
+            return f"{url_prefix}/{fn}?t={int(os.path.getmtime(fp))}"
     return None
 
 def scan_all_sounds():
-    names = [
-        "startup", "switch", "launch", "open_menu", "close_menu", "exit", "screenshot",
-        "default_bgm", "sonic1_bgm", "sonic2_bgm", "soniccd_bgm", "sonic3_bgm", "origins_bgm", "mania_bgm", "srb2_bgm"
-    ]
-    found = {}
-    for n in names:
-        url = find_asset(SOUNDS_DIR, "/sounds", n, ['.mp3', '.wav', '.ogg'])
-        if url:
-            found[n] = url
-    return found
+    res = {}
+    if not os.path.isdir(SOUNDS_DIR):
+        return res
+    for fn in os.listdir(SOUNDS_DIR):
+        fp = os.path.join(SOUNDS_DIR, fn)
+        if os.path.isfile(fp):
+            st, ex = os.path.splitext(fn)
+            if ex.lower() in ('.mp3', '.wav', '.ogg'):
+                res[st] = f"/sounds/{fn}?t={int(os.path.getmtime(fp))}"
+    return res
 
 def find_floating_objects():
-    objects = []
-    if os.path.exists(IMAGES_DIR):
-        for fname in sorted(os.listdir(IMAGES_DIR)):
-            lower = fname.lower()
-            if lower.startswith("object") and lower.endswith(('.png', '.jpg', '.jpeg', '.webp', '.gif')):
-                objects.append(f"/images/{fname}")
-    return objects
+    out = []
+    if not os.path.isdir(IMAGES_DIR):
+        return out
+    for fn in sorted(os.listdir(IMAGES_DIR)):
+        st, ex = os.path.splitext(fn)
+        if st.lower().startswith("object") and ex.lower() in ('.png', '.gif', '.webp', '.jpg', '.jpeg'):
+            fp = os.path.join(IMAGES_DIR, fn)
+            out.append(f"/images/{fn}?t={int(os.path.getmtime(fp))}")
+    return out
 
+def load_config():
+    cfg = {
+        "paths": {},
+        "gamesOrder": [dict(g) for g in DEFAULT_GAMES],
+        "design": json.loads(json.dumps(DEFAULT_DESIGN)),
+        "playtime": {},
+        "launchArgs": {},
+        "modPaths": {},
+        "modPresets": {},
+        "gbIds": {},
+        "gameNotes": {},
+        "emulators": [],
+        "collections": [],
+        "gameVariants": {},
+        "gameInstallers": {},
+        "srb2Mods": [],
+        "smmPath": "",
+        "intro_enabled": False,
+        "intro_media_path": "",
+        "daytime_fx": True,
+        "daytime_override": "auto",
+        "lang": "ru"
+    }
+    if os.path.isfile(CONFIG_FILE):
+        try:
+            with open(CONFIG_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            if isinstance(data, dict):
+                for k, v in data.items():
+                    if k == "design" and isinstance(v, dict):
+                        merged_dsg = json.loads(json.dumps(DEFAULT_DESIGN))
+                        merged_dsg.update(v)
+                        merged_dsg["gradients"] = {**DEFAULT_DESIGN["gradients"], **v.get("gradients", {})}
+                        cfg["design"] = merged_dsg
+                    elif k == "gamesOrder" and isinstance(v, list) and len(v) > 0:
+                        cfg["gamesOrder"] = v
+                    else:
+                        cfg[k] = v
+        except Exception as e:
+            print("Config load error:", e)
+    return cfg
+
+def save_config(cfg):
+    try:
+        with open(CONFIG_FILE, "w", encoding="utf-8") as f:
+            json.dump(cfg, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        print("Config save error:", e)

@@ -20,8 +20,15 @@ function onSelectPresetLayout(val) {
             lang:  { x: 7,  y: 94,  scale: 0.95, anchor: 'center' },
             m5bar: { x: 50, y: 94,  scale: 0.95, anchor: 'center' },
             m4btn: { x: 86, y: 94,  scale: 0.95, anchor: 'center' }
+        },
+        showcase_pro: {
+            header: { x: 22, y: 8, scale: 0.9, anchor: 'center' },
+            lang:   { x: 92, y: 93, scale: 0.95, anchor: 'center' },
+            m5bar:  { x: 66, y: 6,  scale: 0.92, anchor: 'center' },
+            m4btn:  { x: 91, y: 6,  scale: 0.92, anchor: 'center' }
         }
     };
+    if (val === 'showcase_pro') currentDesign.carouselMode = 'showcase';
 
     currentDesign.customLayout = JSON.parse(JSON.stringify(presets[val] || {}));
     applyDesign(currentDesign);
@@ -718,7 +725,7 @@ function applyDesign(design) {
     document.body.classList.add(`style-${design.cardStyle || 'sega'}`);
     document.body.classList.toggle('lite-mode', Boolean(design.liteMode));
 
-    document.body.classList.remove('layout-classic', 'layout-console_left', 'layout-arcade_bottom', 'layout-top_bar');
+    document.body.classList.remove('layout-classic', 'layout-console_left', 'layout-arcade_bottom', 'layout-top_bar', 'layout-showcase_pro');
     document.body.classList.add(`layout-${design.screenLayout || 'classic'}`);
 
     const headerEl = document.querySelector('header');
@@ -1966,6 +1973,8 @@ function syncAllControlsToDesign() {
     if (getChk('inp-liteMode') !== undefined) currentDesign.liteMode = getChk('inp-liteMode');
     if (getChk('inp-discordRpc') !== undefined) currentDesign.discordRpc = getChk('inp-discordRpc');
     if (getChk('inp-showJukebox') !== undefined) currentDesign.showJukebox = getChk('inp-showJukebox');
+    if (getChk('inp-autoBackupSaves') !== undefined) currentDesign.autoBackupSaves = getChk('inp-autoBackupSaves');
+    if (getVal('inp-autoBackupLimit')) currentDesign.autoBackupLimit = parseInt(getVal('inp-autoBackupLimit'));
 }
 
 function openCustomModal() {
@@ -2028,6 +2037,8 @@ function openCustomModal() {
     if (document.getElementById('inp-liteMode')) document.getElementById('inp-liteMode').checked = currentDesign.liteMode ?? false;
     if (document.getElementById('inp-discordRpc')) document.getElementById('inp-discordRpc').checked = currentDesign.discordRpc ?? true;
     if (document.getElementById('inp-showJukebox')) document.getElementById('inp-showJukebox').checked = currentDesign.showJukebox ?? true;
+    if (document.getElementById('inp-autoBackupSaves')) document.getElementById('inp-autoBackupSaves').checked = currentDesign.autoBackupSaves ?? false;
+    if (document.getElementById('inp-autoBackupLimit')) document.getElementById('inp-autoBackupLimit').value = String(currentDesign.autoBackupLimit ?? 5);
 
     const list = document.getElementById('color-pickers-list');
     list.innerHTML = '';
@@ -2158,11 +2169,30 @@ function resetDesign() {
     currentDesign = JSON.parse(JSON.stringify(defaultDesign || {}));
     currentDesign.customLayout = {};
     currentDesign.screenLayout = 'classic';
+    currentDesign.cardStyle = 'glass';
+    currentDesign.carouselMode = 'coverflow';
     currentDesign.headerPos = 'center';
     currentDesign.carouselY = 0;
     currentDesign.btnScale = 100;
+    currentDesign.shaderType = 'none';
+    currentDesign._baseShader = 'none';
+    currentDesign.screenFx = 'none';
+    currentDesign.clickFx = 'rings';
+    currentDesign.lightUi = false;
+    currentDesign.perGameStyle = {};
+    currentDesign.gameShaders = {};
+    currentDesign.cardDecor = {};
+    currentDesign.box3d = {};
+    if (currentDesign.uiThemeBuilder) currentDesign.uiThemeBuilder.enabled = false;
+    if (typeof window.updateGlobalDesignSnap === 'function') window.updateGlobalDesignSnap();
     openCustomModal();
     applyDesign(currentDesign);
+    if (typeof window.syncLightUiClass === 'function') window.syncLightUiClass();
+    if (typeof window.applyVisualFxPack === 'function') window.applyVisualFxPack();
+    if (typeof window.syncClickFxStyle === 'function') window.syncClickFxStyle();
+    if (typeof window.applyUiBuilderStyles === 'function') window.applyUiBuilderStyles();
+    if (typeof window.applyBox3dToCarousel === 'function') window.applyBox3dToCarousel();
+    if (typeof window.renderActiveCardDecor === 'function') window.renderActiveCardDecor('silent');
     renderFloatingObjects();
     selectGame(selectedIndex, false);
 }

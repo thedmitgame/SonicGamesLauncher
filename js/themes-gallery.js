@@ -185,6 +185,7 @@ function mk(tag, cls, css, txt) {
         currentDesign.gradients = nextGrad;
 
         if (typeof playSfx === 'function') playSfx('launch');
+        if (preset.patch.screenLayout && typeof onSelectPresetLayout === 'function') onSelectPresetLayout(preset.patch.screenLayout);
         applyDesign(currentDesign);
         window.syncLightUiClass();
         if (typeof window.applyVisualFxPack === 'function') window.applyVisualFxPack();

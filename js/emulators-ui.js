@@ -259,7 +259,7 @@ async function addRomToCarousel() {
         document.getElementById('rom-path-inp').value = '';
         document.getElementById('emulators-modal').classList.remove('active');
         await loadGames(false);
-        renderPathsModalList();
+        if (document.getElementById('settings-modal')?.classList.contains('active') && typeof openSettings === 'function') await openSettings();
         showToast('Игра добавлена в карусель!');
     }
 }
@@ -326,7 +326,7 @@ async function confirmBatchAddRoms() {
         document.getElementById('rom-batch-box').style.display = 'none';
         document.getElementById('emulators-modal').classList.remove('active');
         await loadGames(false);
-        renderPathsModalList();
+        if (document.getElementById('settings-modal')?.classList.contains('active') && typeof openSettings === 'function') await openSettings();
         showToast('Добавлено игр в карусель: ' + data.added);
     }
 }
@@ -355,7 +355,7 @@ document.addEventListener('click', (e) => {
         }
         if (!bar) {
             const st = mkEl('style', '', '',
-                '#sgl-cat-bar{position:fixed;top:112px;left:50%;transform:translateX(-50%);z-index:68;display:flex;gap:6px;background:rgba(12,18,32,0.72);backdrop-filter:blur(8px);padding:4px 6px;border-radius:20px;border:1px solid rgba(255,255,255,0.12);}'
+                '#sgl-cat-bar{position:fixed;left:50%;transform:translateX(-50%);z-index:68;display:flex;gap:6px;background:rgba(12,18,32,0.72);backdrop-filter:blur(8px);padding:4px 6px;border-radius:20px;border:1px solid rgba(255,255,255,0.12);}'
                 + '.sgl-cat-pill{background:transparent;border:none;color:rgba(255,255,255,0.7);font-size:11px;font-weight:700;padding:4px 12px;border-radius:14px;cursor:pointer;transition:0.18s;}'
                 + '.sgl-cat-pill:hover{color:#fff;background:rgba(255,255,255,0.08);}'
                 + '.sgl-cat-pill.active{background:rgba(255,215,0,0.2);color:#FFD700;}'
@@ -364,9 +364,9 @@ document.addEventListener('click', (e) => {
             document.head.appendChild(st);
             bar = mkEl('div', '', '');
             bar.id = 'sgl-cat-bar';
-            document.body.appendChild(bar);
+            const hdr = document.querySelector('header'); if (hdr) hdr.after(bar); else document.body.appendChild(bar);
         }
-        bar.style.display = 'flex';
+        bar.style.display = (typeof currentDesign !== 'undefined' && currentDesign?.customLayout?.catbar?.hidden) ? 'none' : 'flex';
         bar.innerHTML = '';
         const tabs = new Array({ id: 'all', label: 'Все игры' }, { id: 'core', label: 'Базовые' });
         if (hasEmu) tabs.push({ id: 'emu', label: 'Эмуляторы' });

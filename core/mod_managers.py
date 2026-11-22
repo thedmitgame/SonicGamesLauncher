@@ -1,6 +1,7 @@
 import os, json, string, configparser
+from core.config import BASE_DIR
 
-MM_STORE_FILE = os.path.join(os.getcwd(), "mod_managers.json")
+MM_STORE_FILE = os.path.join(BASE_DIR, "mod_managers.json")
 
 MANAGER_TYPES = {
     "hmm": {"title": "HedgeModManager", "exes": ("HedgeModManager.exe",)},
@@ -61,7 +62,7 @@ def find_manager_exe(m_type, cfg=None):
     info = MANAGER_TYPES.get(m_type)
     if not info:
         return ""
-    roots = [os.getcwd()]
+    roots = [BASE_DIR]
     if cfg:
         for p in cfg.get("paths", {}).values():
             if p and os.path.exists(p):
