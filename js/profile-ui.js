@@ -136,8 +136,5 @@
         btn.onclick = (e) => { e.stopImmediatePropagation(); window.openProfileSummaryModal(); };
     }
 
-    window.addEventListener('DOMContentLoaded', () => {
-        setTimeout(bindProfileBtn, 350);
-        setTimeout(bindProfileBtn, 900);
-    });
+    /* Хаб «Профиль» создаётся и привязывается в js/topbar-hubs.js */
 })();

@@ -19,6 +19,8 @@
             '.mus-stage-col{background:radial-gradient(circle at 50% 48%,rgba(37,99,235,0.26),#070b14 76%);border:1px solid rgba(255,215,0,0.28);border-radius:16px;padding:14px;display:flex;flex-direction:column;justify-content:space-between;position:relative;overflow:hidden;}',
             '.mus-canvas-host{flex:1;min-height:240px;position:relative;z-index:2;}',
             '.mus-base-puck{width:190px;height:30px;margin:-14px auto 8px;border-radius:50%;position:relative;z-index:1;pointer-events:none;}',
+            '.mus-orbit-ring{position:absolute;left:50%;top:46%;width:210px;height:74px;margin:-37px 0 0 -105px;border-radius:50%;border:2px dashed rgba(255,215,0,0.42);box-shadow:0 0 18px rgba(255,215,0,0.22);pointer-events:none;z-index:1;animation:musOrbitSpin 9s linear infinite;}',
+            '@keyframes musOrbitSpin{0%{transform:rotate(-14deg) scale(0.96)}50%{transform:rotate(-14deg) scale(1.04)}100%{transform:rotate(-14deg) scale(0.96)}}',
             '.puck-smash{background:radial-gradient(ellipse at center,#fde047 0%,#ca8a04 65%,#713f12 100%);border:2px solid #fef08a;box-shadow:0 8px 24px rgba(234,179,8,0.45);}',
             '.puck-altar{background:radial-gradient(ellipse at center,#4ade80 0%,#15803d 65%,#052e16 100%);border:2px solid #bbf7d0;box-shadow:0 8px 24px rgba(34,197,94,0.45);}',
             '.puck-neon{background:radial-gradient(ellipse at center,rgba(56,189,248,0.45) 0%,rgba(15,23,42,0.95) 75%);border:2px solid #38bdf8;box-shadow:0 0 24px rgba(56,189,248,0.6);}',
@@ -137,6 +139,62 @@
             desc: 'Вручается творцам, создавшим собственный неповторимый стиль интерфейса лаунчера.',
             condText: 'Включить свой стиль UI, 3D-коробки или добавить свою фигурку',
             checkUnlock: () => Boolean(currentDesign?.uiThemeBuilder?.enabled || currentDesign?.box3d?._global?.enabled || (currentDesign?.trophyMuseum || []).length > 0)
+        },
+        {
+            id: 'tr_game_sonic1', builtin: true, icon: '◎',
+            name: 'Золотое Кольцо Вечности', game: 'Sonic 1 Forever',
+            url: 'builtin_ring', material: 'super_tint', base: 'smash',
+            desc: 'Особая реликвия за прохождение Sonic 1 Forever (7 Изумрудов или ≥80% достижений).',
+            condText: 'Пройти Sonic 1 Forever (7 Изумрудов или ≥80% достижений)',
+            checkUnlock: (_st, _pct, saves) => Boolean(saves && saves.sonic1 && saves.sonic1.completed)
+        },
+        {
+            id: 'tr_game_sonic2', builtin: true, icon: '★',
+            name: 'Эмблема Крыла Торнадо', game: 'Sonic 2 Absolute',
+            url: 'builtin_starpost', material: 'super_tint', base: 'smash',
+            desc: 'Награда за покорение Sonic 2 Absolute и небесной крепости Death Egg.',
+            condText: 'Пройти Sonic 2 Absolute (7 Изумрудов или ≥80% достижений)',
+            checkUnlock: (_st, _pct, saves) => Boolean(saves && saves.sonic2 && saves.sonic2.completed)
+        },
+        {
+            id: 'tr_game_soniccd', builtin: true, icon: '💠',
+            name: 'Хроно-кристалл Маленькой Планеты', game: 'Sonic CD Restored',
+            url: 'builtin_timestone', material: 'original', base: 'altar',
+            desc: 'Редкий Хроно-кристалл за спасение будущего в Sonic CD Restored.',
+            condText: 'Пройти Sonic CD Restored (7 Камней Времени или ≥80% достижений)',
+            checkUnlock: (_st, _pct, saves) => Boolean(saves && saves.soniccd && saves.soniccd.completed)
+        },
+        {
+            id: 'tr_game_sonic3', builtin: true, icon: '◆',
+            name: 'Мастер Изумрудов Алтаря', game: 'Sonic 3 A.I.R.',
+            url: 'builtin_super_emerald', material: 'emerald', base: 'altar',
+            desc: 'Величественный Мастер Изумрудов за прохождение Sonic 3 A.I.R.!',
+            condText: 'Пройти Sonic 3 A.I.R. (7 Изумрудов или ≥80% достижений)',
+            checkUnlock: (_st, _pct, saves) => Boolean(saves && saves.sonic3 && saves.sonic3.completed)
+        },
+        {
+            id: 'tr_game_mania', builtin: true, icon: '🔮',
+            name: 'Призма Фантомного Рубина', game: 'Sonic Mania',
+            url: 'builtin_prism', material: 'hyper_tint', base: 'neon',
+            desc: 'Сияющий артефакт измерений за прохождение Sonic Mania.',
+            condText: 'Пройти Sonic Mania (7 Изумрудов или ≥80% достижений)',
+            checkUnlock: (_st, _pct, saves) => Boolean(saves && saves.mania && saves.mania.completed)
+        },
+        {
+            id: 'tr_game_srb2', builtin: true, icon: '🎖',
+            name: 'Медальон 3D-Первопроходца', game: 'Sonic Robo Blast 2',
+            url: 'builtin_medallion', material: 'chrome', base: 'neon',
+            desc: 'Почётная награда за прохождение Sonic Robo Blast 2.',
+            condText: 'Пройти Sonic Robo Blast 2 (7 Изумрудов)',
+            checkUnlock: (_st, _pct, saves) => Boolean(saves && saves.srb2 && saves.srb2.completed)
+        },
+        {
+            id: 'tr_game_origins', builtin: true, icon: '🏆',
+            name: 'Кубок Классической Коллекции', game: 'Sonic Origins',
+            url: 'builtin_cup', material: 'gold', base: 'smash',
+            desc: 'Награда Зала славы за прохождение Sonic Origins (≥80% достижений Steam).',
+            condText: 'Пройти Sonic Origins (≥80% достижений Steam)',
+            checkUnlock: (_st, _pct, saves) => Boolean(saves && saves.origins && saves.origins.completed)
         }
     );
 
@@ -161,6 +219,11 @@
         if (!stats) {
             try { stats = await (await fetch('/api/profile_summary')).json(); const ex = await (await fetch('/api/challenges/stats')).json(); Object.assign(stats, ex); window._lastProfileStats = stats; }
             catch (_) { stats = { installedCount: 1, totalSeconds: 0, emeraldsCur: 0, emeraldsMax: 7, achDone: 0, achMax: 10 }; }
+        }
+        let savesMap = (window._sglSaveSummary && window._sglSaveSummary.games) ? window._sglSaveSummary.games : {};
+        if (typeof window.refreshSaveSummaryCache === 'function') {
+            const freshSum = await window.refreshSaveSummaryCache(true);
+            if (freshSum && freshSum.games) savesMap = freshSum.games;
         }
         const emP = stats.emeraldsMax > 0 ? (stats.emeraldsCur / stats.emeraldsMax) : 0;
         const acP = stats.achMax > 0 ? (stats.achDone / stats.achMax) : 0;
@@ -197,7 +260,7 @@
         let selectedId = 'tr_ring';
 
         function isItemUnlocked(item) {
-            if (item.builtin) return Boolean(item.checkUnlock(stats, pct));
+            if (item.builtin) return Boolean(item.checkUnlock(stats, pct, savesMap));
             const req = Number(item.reqPct || 0);
             return pct >= req;
         }

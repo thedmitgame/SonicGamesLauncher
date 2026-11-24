@@ -292,19 +292,17 @@
     };
 
     function injectBuilderBanner() {
-        Array.of('tab-buttons', 'tab-appearance').forEach(tabId => {
-            const pane = document.getElementById(tabId);
-            if (!pane || pane.querySelector('.sgl-uib-open-card')) return;
-            const card = mk('div', 'char-card-cfg sgl-uib-open-card', 'flex-direction:row;justify-content:space-between;align-items:center;padding:10px 12px;margin-bottom:10px;border-color:rgba(244,114,182,0.45);background:rgba(244,114,182,0.06);');
-            const btn = mk('button', 'btn-small btn-accent', 'padding:6px 12px;font-weight:700;', 'Открыть Конструктор UI...');
-            btn.type = 'button';
-            btn.onclick = () => window.openUiThemeBuilderModal();
-            card.append(
-                mk('span', '', 'font-size:12px;font-weight:800;color:#F472B6;', 'Конструктор кнопок, рамок, окон, шрифта и курсоров'),
-                btn
-            );
-            pane.prepend(card);
-        });
+        const pane = document.getElementById('tab-buttons');
+        if (!pane || pane.querySelector('.sgl-uib-open-card')) return;
+        const card = mk('div', 'char-card-cfg sgl-uib-open-card', 'flex-direction:row;justify-content:space-between;align-items:center;padding:10px 12px;margin-bottom:10px;');
+        const btn = mk('button', 'btn-small', 'padding:6px 12px;font-weight:600;', 'Открыть Конструктор UI...');
+        btn.type = 'button';
+        btn.onclick = () => window.openUiThemeBuilderModal();
+        card.append(
+            mk('span', '', 'font-size:12px;font-weight:700;color:rgba(255,255,255,0.9);', 'Конструктор кнопок, рамок, окон, шрифта и курсоров'),
+            btn
+        );
+        pane.prepend(card);
     }
 
     const _bootUib = () => {

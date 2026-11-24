@@ -8,24 +8,20 @@ function onSelectPresetLayout(val) {
         classic: {},
         console_left: {
             lang:  { x: 92, y: 4.5, scale: 0.95, anchor: 'center' },
-            m5bar: { x: 64, y: 4.5, scale: 0.95, anchor: 'center' },
-            m4btn: { x: 81, y: 4.5, scale: 0.95, anchor: 'center' }
+            m5bar: { x: 68, y: 4.5, scale: 0.95, anchor: 'center' }
         },
         arcade_bottom: {
             lang:  { x: 7,  y: 4.5, scale: 0.95, anchor: 'center' },
-            m5bar: { x: 68, y: 4.5, scale: 0.95, anchor: 'center' },
-            m4btn: { x: 89, y: 4.5, scale: 0.95, anchor: 'center' }
+            m5bar: { x: 82, y: 4.5, scale: 0.95, anchor: 'center' }
         },
         top_bar: {
             lang:  { x: 7,  y: 94,  scale: 0.95, anchor: 'center' },
-            m5bar: { x: 50, y: 94,  scale: 0.95, anchor: 'center' },
-            m4btn: { x: 86, y: 94,  scale: 0.95, anchor: 'center' }
+            m5bar: { x: 50, y: 94,  scale: 0.95, anchor: 'center' }
         },
         showcase_pro: {
             header: { x: 22, y: 8, scale: 0.9, anchor: 'center' },
             lang:   { x: 92, y: 93, scale: 0.95, anchor: 'center' },
-            m5bar:  { x: 66, y: 6,  scale: 0.92, anchor: 'center' },
-            m4btn:  { x: 91, y: 6,  scale: 0.92, anchor: 'center' }
+            m5bar:  { x: 81, y: 5.5, scale: 0.94, anchor: 'center' }
         }
     };
     if (val === 'showcase_pro') currentDesign.carouselMode = 'showcase';
@@ -721,7 +717,7 @@ function applyDesign(design) {
     document.documentElement.style.setProperty('--carousel-y', `${design.carouselY ?? 0}px`);
     document.documentElement.style.setProperty('--btn-scale', (design.btnScale ?? 100) / 100);
 
-    document.body.classList.remove('style-glass', 'style-neon', 'style-retro', 'style-sega', 'style-console');
+    document.body.classList.remove('style-glass', 'style-neon', 'style-retro', 'style-sega', 'style-console', 'style-super_gold', 'style-chaos_emerald');
     document.body.classList.add(`style-${design.cardStyle || 'sega'}`);
     document.body.classList.toggle('lite-mode', Boolean(design.liteMode));
 
@@ -1090,9 +1086,23 @@ function renderMainScreen() {
         if (progBtn) progBtn.classList.add('hidden');
         container.innerHTML = `
             <div class="empty-state">
-                Пока не добавлено ни одной игры.<br>
-                Нажмите <b>«Игры и пути»</b> внизу,<br>
-                чтобы указать .exe файлы.<br><button class="btn-small btn-accent" style="margin-top:12px;padding:8px 16px;" onclick="runAutoScanGames()">Найти игры автоматически</button>
+                <div class="empty-state-icon">
+                    <svg viewBox="0 0 64 64" width="38" height="38" fill="none">
+                        <circle cx="32" cy="32" r="24" stroke="#FFD700" stroke-width="4.5"/>
+                        <circle cx="32" cy="32" r="18" stroke="rgba(255,215,0,0.35)" stroke-width="1.5"/>
+                        <rect x="20" y="25" width="24" height="14" rx="7" fill="rgba(37,99,235,0.28)" stroke="#ffffff" stroke-width="2.2"/>
+                        <line x1="25" y1="32" x2="29" y2="32" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round"/>
+                        <line x1="27" y1="30" x2="27" y2="34" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round"/>
+                        <circle cx="37.5" cy="30.5" r="1.4" fill="#FFD700"/>
+                        <circle cx="39.5" cy="33.5" r="1.4" fill="#60A5FA"/>
+                    </svg>
+                </div>
+                <div class="empty-state-title">Библиотека игр пока пуста</div>
+                <div class="empty-state-desc">Запустите автопоиск установленных игр или укажите .exe файл вручную</div>
+                <div class="empty-state-actions">
+                    <button type="button" class="empty-btn-primary" onclick="runAutoScanGames()">Найти игры автоматически</button>
+                    <button type="button" class="empty-btn-secondary" onclick="openSettings()">Добавить .exe вручную</button>
+                </div>
             </div>
         `;
         return;
@@ -1968,6 +1978,31 @@ function syncAllControlsToDesign() {
     if (getVal('inp-headerPos')) currentDesign.headerPos = getVal('inp-headerPos');
     if (getVal('inp-panelAlpha') !== undefined) currentDesign.panelAlpha = parseInt(getVal('inp-panelAlpha'));
     if (getVal('inp-mainTitleStr') !== undefined) currentDesign.mainTitleStr = getVal('inp-mainTitleStr');
+    if (getVal('inp-shaderType')) { currentDesign.shaderType = getVal('inp-shaderType'); currentDesign._baseShader = getVal('inp-shaderType'); }
+    if (getVal('inp-screenFx')) currentDesign.screenFx = getVal('inp-screenFx');
+    if (getVal('inp-screenFxOpacity') !== undefined) currentDesign.screenFxOpacity = parseInt(getVal('inp-screenFxOpacity'));
+    if (getVal('inp-shaderType')) { currentDesign.shaderType = getVal('inp-shaderType'); currentDesign._baseShader = getVal('inp-shaderType'); }
+    if (getVal('inp-screenFx')) currentDesign.screenFx = getVal('inp-screenFx');
+    if (getVal('inp-screenFxOpacity') !== undefined) currentDesign.screenFxOpacity = parseInt(getVal('inp-screenFxOpacity'));
+    if (getVal('inp-shaderType')) { currentDesign.shaderType = getVal('inp-shaderType'); currentDesign._baseShader = getVal('inp-shaderType'); }
+    if (getVal('inp-screenFx')) currentDesign.screenFx = getVal('inp-screenFx');
+    if (getVal('inp-screenFxOpacity') !== undefined) currentDesign.screenFxOpacity = parseInt(getVal('inp-screenFxOpacity'));
+    if (getVal('inp-shaderType')) { currentDesign.shaderType = getVal('inp-shaderType'); currentDesign._baseShader = getVal('inp-shaderType'); }
+    if (getVal('inp-screenFx')) currentDesign.screenFx = getVal('inp-screenFx');
+    if (getVal('inp-screenFxOpacity') !== undefined) currentDesign.screenFxOpacity = parseInt(getVal('inp-screenFxOpacity'));
+    if (getVal('inp-shaderType')) { currentDesign.shaderType = getVal('inp-shaderType'); currentDesign._baseShader = getVal('inp-shaderType'); }
+    if (getVal('inp-screenFx')) currentDesign.screenFx = getVal('inp-screenFx');
+    if (getVal('inp-screenFxOpacity') !== undefined) currentDesign.screenFxOpacity = parseInt(getVal('inp-screenFxOpacity'));
+    if (getVal('inp-shaderType')) { currentDesign.shaderType = getVal('inp-shaderType'); currentDesign._baseShader = getVal('inp-shaderType'); }
+    if (getVal('inp-screenFx')) currentDesign.screenFx = getVal('inp-screenFx');
+    if (getVal('inp-screenFxOpacity') !== undefined) currentDesign.screenFxOpacity = parseInt(getVal('inp-screenFxOpacity'));
+    if (getVal('inp-shaderType')) { currentDesign.shaderType = getVal('inp-shaderType'); currentDesign._baseShader = getVal('inp-shaderType'); }
+    if (getVal('inp-screenFx')) currentDesign.screenFx = getVal('inp-screenFx');
+    if (getVal('inp-screenFxOpacity') !== undefined) currentDesign.screenFxOpacity = parseInt(getVal('inp-screenFxOpacity'));
+    if (getVal('inp-screenFx')) currentDesign.screenFx = getVal('inp-screenFx');
+    if (getVal('inp-screenFxOpacity') !== undefined) currentDesign.screenFxOpacity = parseInt(getVal('inp-screenFxOpacity'));
+    if (getVal('inp-screenFx')) currentDesign.screenFx = getVal('inp-screenFx');
+    if (getVal('inp-screenFxOpacity') !== undefined) currentDesign.screenFxOpacity = parseInt(getVal('inp-screenFxOpacity'));
     if (getChk('inp-enableEq') !== undefined) currentDesign.enableEq = getChk('inp-enableEq');
     if (getChk('inp-enableParallax') !== undefined) currentDesign.enableParallax = getChk('inp-enableParallax');
     if (getChk('inp-liteMode') !== undefined) currentDesign.liteMode = getChk('inp-liteMode');
@@ -2002,6 +2037,8 @@ function openCustomModal() {
         document.getElementById('inp-mainTitleStr').value = currentDesign.mainTitleStr || 'SONIC LAUNCHER';
     }
 
+    if (document.getElementById('inp-screenFx')) document.getElementById('inp-screenFx').value = currentDesign.screenFx || 'none';
+    if (document.getElementById('inp-screenFxOpacity')) document.getElementById('inp-screenFxOpacity').value = currentDesign.screenFxOpacity ?? 50;
     document.getElementById('inp-cardWidth').value = currentDesign.cardWidth;
     document.getElementById('val-cardWidth').innerText = currentDesign.cardWidth;
     document.getElementById('inp-cardRadius').value = currentDesign.cardRadius ?? 14;
@@ -2120,6 +2157,8 @@ async function importThemeFile() {
 function previewDesign(previewThemeId = null, rebuildObjects = false) {
     syncAllControlsToDesign();
     currentDesign.shaderType = document.getElementById('inp-shaderType').value;
+    if (document.getElementById('inp-screenFx')) currentDesign.screenFx = document.getElementById('inp-screenFx').value;
+    if (document.getElementById('inp-screenFxOpacity')) currentDesign.screenFxOpacity = parseInt(document.getElementById('inp-screenFxOpacity').value);
     currentDesign.cardWidth = parseInt(document.getElementById('inp-cardWidth').value);
     currentDesign.cardRadius = parseInt(document.getElementById('inp-cardRadius').value);
     currentDesign.logoHeight = parseInt(document.getElementById('inp-logoHeight').value);
@@ -2170,6 +2209,20 @@ function resetDesign() {
     currentDesign.customLayout = {};
     currentDesign.screenLayout = 'classic';
     currentDesign.cardStyle = 'glass';
+    currentDesign.screenFxOpacity = 50;
+    currentDesign.superAuraStyle = 'gold';
+    currentDesign.screenFxOpacity = 50;
+    currentDesign.superAuraStyle = 'gold';
+    currentDesign.screenFxOpacity = 50;
+    currentDesign.superAuraStyle = 'gold';
+    currentDesign.screenFxOpacity = 50;
+    currentDesign.superAuraStyle = 'gold';
+    currentDesign.screenFxOpacity = 50;
+    currentDesign.superAuraStyle = 'gold';
+    currentDesign.screenFxOpacity = 50;
+    currentDesign.superAuraStyle = 'gold';
+    currentDesign.screenFxOpacity = 50;
+    currentDesign.superAuraStyle = 'gold';
     currentDesign.carouselMode = 'coverflow';
     currentDesign.headerPos = 'center';
     currentDesign.carouselY = 0;
@@ -2179,6 +2232,7 @@ function resetDesign() {
     currentDesign.screenFx = 'none';
     currentDesign.clickFx = 'rings';
     currentDesign.lightUi = false;
+    currentDesign.superSaveFx = true;
     currentDesign.perGameStyle = {};
     currentDesign.gameShaders = {};
     currentDesign.cardDecor = {};
@@ -2199,6 +2253,7 @@ function resetDesign() {
 
 async function saveAndCloseCustom() {
     syncAllControlsToDesign();
+    if (currentDesign) currentDesign._baseShader = currentDesign.shaderType || 'none';
     playSfx('close_menu');
     await fetch('/api/design', {
         method: 'POST',

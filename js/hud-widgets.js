@@ -167,7 +167,8 @@
     };
 
     function injectWidgetsCustomizerBox() {
-        const pane = document.getElementById('tab-appearance');
+        const slot = document.getElementById('sgl-studio-widgets-slot');
+        const pane = slot || document.getElementById('tab-studio') || document.getElementById('tab-appearance');
         if (!pane || document.getElementById('sgl-hudw-cfg-box')) return;
 
         const box = mk('div', 'char-card-cfg', 'margin-top:8px;margin-bottom:10px;');
@@ -199,9 +200,7 @@
         });
         box.appendChild(grid);
 
-        const anchor = document.getElementById('inp-screenLayout')?.closest('.custom-group');
-        if (anchor) anchor.after(box);
-        else pane.appendChild(box);
+        pane.appendChild(box);
     }
 
     const _bootHw = () => {

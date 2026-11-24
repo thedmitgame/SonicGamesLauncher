@@ -397,25 +397,7 @@
             };
         }
 
-        const origOpenCustom = window.openCustomModal;
-        if (typeof origOpenCustom === 'function' && !window._b3dCustomHooked) {
-            window._b3dCustomHooked = true;
-            window.openCustomModal = function() {
-                const r = origOpenCustom.apply(this, arguments);
-                const pane = document.getElementById('tab-appearance');
-                if (pane && !document.getElementById('sgl-open-b3d-btn')) {
-                    const row = mk('div', 'char-card-cfg', 'flex-direction:row;justify-content:space-between;align-items:center;padding:9px 12px;margin-bottom:10px;border-color:rgba(96,165,250,0.35);');
-                    row.id = 'sgl-open-b3d-btn';
-                    row.append(
-                        mk('span', '', 'font-size:12px;font-weight:800;color:#93C5FD;', 'Объёмные 3D-коробки игр (Корешок и Задняя сторона)'),
-                        (() => { const b = mk('button', 'btn-small btn-accent', '', 'Настроить 3D-боксы...'); b.type = 'button'; b.onclick = () => window.openBox3dModal(); return b; })()
-                    );
-                    const anchor = document.getElementById('inp-cardStyle')?.closest('.custom-group');
-                    if (anchor) anchor.after(row); else pane.appendChild(row);
-                }
-                return r;
-            };
-        }
+        /* Кнопка 3D-боксов перенесена во вкладку «Студия и HUD» */
 
         setTimeout(window.applyBox3dToCarousel, 460);
     };

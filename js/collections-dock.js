@@ -29,7 +29,7 @@
 '@media (min-width: 1360px){ body.layout-classic header:not([style*="top:"]){margin-top:10px !important;} }',
 '[data-hud-id="m5bar"]{gap:5px !important;}',
 '[data-hud-id="m5bar"] .settings-btn{padding:5px 9px !important;font-size:11.5px !important;}',
-'@media (max-width: 1220px){ [data-hud-id="m5bar"]:not([style*="left:"]){right:138px !important;top:12px !important;gap:4px !important;} [data-hud-id="m5bar"] .settings-btn{padding:4px 8px !important;font-size:11px !important;} #m6-lang-select:not([style*="left:"]){padding:5px 8px !important;font-size:11px !important;} #sgl-jukebox:not([style*="top:"]){top:48px !important;right:14px !important;transform:scale(0.92);transform-origin:top right;} }',
+'@media (max-width: 1220px){ [data-hud-id="m5bar"]:not([style*="left:"]){right:16px !important;top:12px !important;gap:6px !important;} [data-hud-id="m5bar"] .settings-btn{padding:0 10px !important;font-size:11.5px !important;} #m6-lang-select:not([style*="left:"]){padding:5px 8px !important;font-size:11px !important;} #sgl-jukebox:not([style*="top:"]){top:56px !important;right:16px !important;transform:scale(0.92);transform-origin:top right;} }',
             '#sgl-cat-bar:not([style*="left:"]){position:relative !important;top:auto !important;left:auto !important;transform:none !important;margin:6px auto 4px auto !important;width:fit-content;} #sgl-cat-bar{z-index:68;display:flex;align-items:center;gap:5px;background:rgba(10,15,28,0.82);backdrop-filter:blur(12px);padding:5px 7px;border-radius:999px;border:1px solid rgba(255,255,255,0.16);box-shadow:0 8px 24px rgba(0,0,0,0.45);max-width:90vw;overflow-x:auto;flex-wrap:nowrap;}',
             '#sgl-cat-bar::-webkit-scrollbar{height:0;}',
             '#sgl-cat-bar .sgl-cat-pill{appearance:none;-webkit-appearance:none;background:transparent;border:1px solid transparent;color:rgba(255,255,255,0.75);font-size:11.5px;font-weight:700;padding:5px 13px;border-radius:999px;cursor:pointer;transition:all 0.18s ease;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;line-height:1.1;}',
@@ -395,15 +395,16 @@
     };
 
     function injectTopDockBtn() {
-        if (document.getElementById('sgl-minidock-top-btn')) return;
-        const bar = document.querySelector('[data-hud-id="m5bar"]');
-        if (!bar) return;
-        const b = mk('button', 'settings-btn', 'padding:6px 11px;font-size:12px;', '');
-        b.type = 'button'; b.id = 'sgl-minidock-top-btn';
+        document.getElementById('sgl-minidock-top-btn')?.remove();
+        if (document.getElementById('btn-ui-minidock')) return;
+        const b = mk('button', 'corner-btn dock-corner', '', '');
+        b.type = 'button';
+        b.id = 'btn-ui-minidock';
+        b.setAttribute('data-hud-id', 'btn-minidock');
         b.title = 'Свернуть в компактный Мини-док сбоку экрана (F9)';
-        b.innerHTML = '<span class="btn-inner-wrap">' + SVG_DOCK + '<span>Мини-док</span></span>';
+        b.innerHTML = '<span class="btn-inner-wrap">' + SVG_DOCK + '</span>';
         b.onclick = () => window.toggleMiniDockMode(true);
-        bar.appendChild(b);
+        document.body.appendChild(b);
     }
 
     window.addEventListener('keydown', (e) => {

@@ -37,6 +37,10 @@ window.__m4InitUI = function() {
                     <button class="m4-act sec" id="m4-b-pr">Тест</button>
                 </div>
             </div>
+            <div style="background:rgba(255,255,255,0.05);padding:12px;border-radius:10px;margin-bottom:12px;">
+                <div class="m4-row" style="margin:2px 0;"><span style="font-size:13px;font-weight:700;">Реакция UI на сейвы (Super-режим)</span><input type="checkbox" id="m4-c-sup" checked></div>
+                <div class="m4-row" style="margin:8px 0 2px 0;"><span style="font-size:12px;opacity:0.85;">Стиль SUPER-ауры:</span><select id="m4-s-sup" style="background:#1b2236;color:#fff;border:1px solid rgba(255,255,255,0.2);border-radius:8px;padding:4px 8px;font-size:12px;"><option value="gold">Super Gold</option><option value="hyper">Hyper Rainbow</option><option value="dark">Dark Super</option><option value="shield">Energy Shield</option></select></div>
+            </div>
             <div style="background:rgba(255,255,255,0.05);padding:12px;border-radius:10px;margin-bottom:14px;">
                 <div class="m4-row"><span style="font-size:13px;font-weight:700;">Освещение по времени суток</span><input type="checkbox" id="m4-c-dt"></div>
                 <div class="m4-row">
@@ -93,6 +97,8 @@ window.__m4InitUI = function() {
             m4.daytime_override = cfg.daytime_override || 'auto';
             document.getElementById('m4-c-in').checked = m4.intro_enabled;
             document.getElementById('m4-c-dt').checked = m4.daytime_fx;
+            const supEl = document.getElementById('m4-c-sup');
+            if (supEl) supEl.checked = (cfg.design?.superSaveFx !== false);
             document.getElementById('m4-s-dt').value = m4.daytime_override;
             const fn = m4.intro_media_path ? m4.intro_media_path.split(/[\\/]/).pop() : 'Стандартная анимация кольца';
             document.getElementById('m4-f-lbl').textContent = 'Файл: ' + fn;
@@ -162,6 +168,13 @@ window.__m4InitUI = function() {
     modal.onclick = (e) => { if (e.target === modal) modal.classList.remove('open'); };
     document.getElementById('m4-c-in').onchange = (e) => save({ intro_enabled: e.target.checked });
     document.getElementById('m4-c-dt').onchange = (e) => save({ daytime_fx: e.target.checked });
+    const supChk = document.getElementById('m4-c-sup');
+    const supSel = document.getElementById('m4-s-sup');
+    if (supSel && typeof currentDesign !== 'undefined' && currentDesign) { supSel.value = currentDesign.superAuraStyle || 'gold'; }
+    if (supSel) supSel.onchange = (e) => { if (typeof currentDesign !== 'undefined' && currentDesign) { currentDesign.superAuraStyle = e.target.value; currentDesign.shaderType = (e.target.value === 'hyper') ? 'starfield' : 'sparks'; if (typeof applyDesign === 'function') applyDesign(currentDesign); } };
+    if (supChk) supChk.onchange = (e) => {
+        if (typeof window.toggleSuperSaveFx === 'function') window.toggleSuperSaveFx(e.target.checked);
+    };
     document.getElementById('m4-s-dt').onchange = (e) => save({ daytime_override: e.target.value });
     document.getElementById('m4-b-cl').onclick = () => save({ clear_media: true });
     document.getElementById('m4-b-pr').onclick = () => runIntro('ПРЕДПРОСМОТР ЗАСТАВКИ');
@@ -193,24 +206,19 @@ window.__m4InitUI = function() {
     `;
     document.head.appendChild(st);
 
-    // 2. Панель быстрых действий: Рулетка, Папка игры, Папка сохранений
+    // 2. Контейнер верхней панели (наполняется 4 хабами в js/topbar-hubs.js)
     const bar = document.createElement('div');
     bar.id = 'm5-top-bar';
     bar.setAttribute('data-hud-id', 'm5bar');
-    bar.innerHTML = `
-        <button class="settings-btn" id="m5-roulette-btn" title="Выбрать случайную игру"><span class="btn-inner-wrap"><svg class="btn-svg-icon" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><circle cx="15.5" cy="15.5" r="1.5"/><circle cx="12" cy="12" r="1.5"/></svg><span>Рулетка</span></span></button>
-        <button class="settings-btn" id="m5-dir-game-btn" title="Открыть папку выбранной игры"><span class="btn-inner-wrap"><svg class="btn-svg-icon" viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg><span>Игра</span></span></button>
-        <button class="settings-btn" id="m5-dir-save-btn" title="Открыть папку сохранений и конфигов"><span class="btn-inner-wrap"><svg class="btn-svg-icon" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg><span>Сейвы</span></span></button>
-    `;
     document.body.appendChild(bar);
 
     // 3. Логика Рулетки (анимированная прокрутка карусели)
     let isSpinning = false;
-    document.getElementById('m5-roulette-btn').onclick = () => {
+    window.runLauncherRoulette = function() {
         if (isSpinning || !Array.isArray(availableGames) || availableGames.length <= 1) return;
         isSpinning = true;
         const btn = document.getElementById('m5-roulette-btn');
-        btn.disabled = true;
+        if (btn) btn.disabled = true;
 
         const total = availableGames.length;
         const steps = total * 3 + Math.floor(Math.random() * total) + 1;
@@ -220,13 +228,12 @@ window.__m4InitUI = function() {
             moveSelection(1);
             currentStep++;
             if (currentStep < steps) {
-                // Плавное замедление под конец прокрутки
                 const progress = currentStep / steps;
                 const delay = Math.floor(45 + Math.pow(progress, 2.4) * 260);
                 setTimeout(spinTick, delay);
             } else {
                 isSpinning = false;
-                btn.disabled = false;
+                if (btn) btn.disabled = false;
                 playSfx('launch');
             }
         }
@@ -234,7 +241,7 @@ window.__m4InitUI = function() {
     };
 
     // 4. Быстрое открытие папок игры и сохранений
-    async function openCurrentGameFolder(type) {
+    window.openCurrentGameFolder = async function(type) {
         const activeGame = availableGames && availableGames.at(selectedIndex);
         if (!activeGame) return;
         playSfx('switch');
@@ -243,10 +250,7 @@ window.__m4InitUI = function() {
         if (!data.ok) {
             showToast(data.error || 'Не удалось открыть папку', true);
         }
-    }
-
-    document.getElementById('m5-dir-game-btn').onclick = () => openCurrentGameFolder('game');
-    document.getElementById('m5-dir-save-btn').onclick = () => openCurrentGameFolder('saves');
+    };
 
     // 5. Интерактивный курсор: разлёт золотых колец при клике (отключается в liteMode)
     document.addEventListener('pointerdown', (e) => {
@@ -335,9 +339,9 @@ window.__m4InitUI = function() {
 (function() {
     function injectCircleControls() {
         if (document.getElementById('m-circle-controls')) return;
-        const anchorInput = document.getElementById('inp-carouselY') || document.getElementById('inp-cardWidth');
+        const anchorInput = document.getElementById('inp-cardWidth');
         if (!anchorInput) return;
-        const targetContainer = anchorInput.closest('.tab-pane') || anchorInput.parentElement?.parentElement;
+        const targetContainer = anchorInput.closest('.sgl-fine-tune-body') || anchorInput.closest('.tab-pane') || anchorInput.parentElement?.parentElement;
         if (!targetContainer) return;
 
         const rxVal = currentDesign?.carouselRadiusX ?? 100;

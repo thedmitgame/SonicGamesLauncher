@@ -225,10 +225,10 @@
     };
 
     function injectDiceButtonInCustomizer() {
-        const ioBar = document.querySelector('#custom-modal .theme-io-bar');
-        if (!ioBar || document.getElementById('sgl-dice-btn')) return;
+        const target = document.getElementById('sgl-dice-slot') || document.getElementById('tab-appearance');
+        if (!target || document.getElementById('sgl-dice-btn')) return;
 
-        const diceBtn = mk('button', 'btn-small btn-accent', 'background:linear-gradient(135deg,#ec4899,#8b5cf6);font-weight:800;', '🎲 Случайный стиль');
+        const diceBtn = mk('button', 'btn-small', 'font-weight:700;', '🎲 Случайный стиль');
         diceBtn.type = 'button';
         diceBtn.id = 'sgl-dice-btn';
         diceBtn.title = 'Подобрать случайную гармоничную комбинацию темы, шейдера и эффектов';
@@ -239,7 +239,7 @@
         undoBtn.id = 'sgl-dice-undo-btn';
         undoBtn.onclick = () => window.undoRandomLauncherStyle();
 
-        ioBar.append(diceBtn, undoBtn);
+        target.append(diceBtn, undoBtn);
     }
 
     const _bootFinalTrio = () => {

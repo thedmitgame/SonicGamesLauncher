@@ -224,6 +224,27 @@
             window.updateCarouselPositions();
         });
 
+        window.setLibraryViewMode = async function(mode) {
+            if (typeof currentDesign === 'undefined' || !currentDesign) return;
+            quickGridOverlay = false;
+            currentDesign.carouselMode = mode;
+            const sel = document.getElementById('inp-carouselMode');
+            if (sel) sel.value = mode;
+            if (typeof playSfx === 'function') playSfx('switch');
+            window.updateCarouselPositions();
+            if (typeof window.applyBox3dToCarousel === 'function') window.applyBox3dToCarousel();
+            if (typeof window.restoreGlobalDesignFields === 'function') window.restoreGlobalDesignFields();
+            try {
+                await fetch('/api/design', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(currentDesign)
+                });
+            } catch (_) {}
+            const activeG = (typeof availableGames !== 'undefined' && availableGames.length > 0) ? availableGames.at(selectedIndex) : null;
+            if (activeG && typeof window.applyPerGameVisuals === 'function') window.applyPerGameVisuals(activeG.id);
+        };
+
         ensureModeOptions();
         setTimeout(() => { if (typeof window.updateCarouselPositions === 'function') window.updateCarouselPositions(); }, 250);
     }

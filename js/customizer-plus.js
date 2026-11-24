@@ -28,6 +28,12 @@
                 cardRadius: 18, panelAlpha: 45, carouselRadiusY: 55
             }
         },
+        angel_island: { label: 'Angel Island', bg: Array.of('#042f24', '#10b981'), patch: { screenLayout: 'classic', cardStyle: 'glass', shaderType: 'sparks', screenFx: 'vignette', screenFxOpacity: 42, titleColor: '#FDE047', textColor: '#ECFDF5' } },
+        colony_ark: { label: 'Space Colony ARK', bg: Array.of('#09090b', '#e11d48'), patch: { screenLayout: 'console_left', cardStyle: 'neon', shaderType: 'starfield', screenFx: 'crt', screenFxOpacity: 35, titleColor: '#FDA4AF', textColor: '#F8FAFC' } },
+        emerald_coast: { label: 'Emerald Coast 98', bg: Array.of('#0369a1', '#38bdf8'), patch: { screenLayout: 'arcade_bottom', cardStyle: 'console', shaderType: 'synthwave', screenFx: 'none', titleColor: '#FEF08A', textColor: '#FFFFFF' } },
+        chemical_plant: { label: 'Chemical Plant', bg: Array.of('#172554', '#ec4899'), patch: { screenLayout: 'top_bar', cardStyle: 'sega', shaderType: 'mania_geo', screenFx: 'crt', screenFxOpacity: 38, titleColor: '#67E8F9', textColor: '#FFFFFF' } },
+        super_gold_plus: { label: 'Super Gold+', bg: Array.of('#451a03', '#facc15'), patch: { cardStyle: 'super_gold', shaderType: 'sparks', screenFx: 'vignette', screenFxOpacity: 32, titleColor: '#FEF08A', textColor: '#FFFBEB' } },
+        chaos_emerald_plus: { label: 'Chaos Emerald+', bg: Array.of('#022c22', '#34d399'), patch: { cardStyle: 'chaos_emerald', shaderType: 'starfield', screenFx: 'vignette', screenFxOpacity: 35, titleColor: '#6EE7B7', textColor: '#ECFDF5' } },
         dreamcast_clean: {
             label: "Console Clean",
             bg: ["#081b2e", "#0284c7"],
@@ -77,7 +83,7 @@
 
     function syncActiveGameShader() {
         if (typeof currentDesign === 'undefined' || !currentDesign) return;
-        if (currentDesign._baseShader === undefined) {
+        if (currentDesign._baseShader === undefined || (currentDesign.shaderType && currentDesign.shaderType !== 'none' && currentDesign._baseShader === 'none')) {
             currentDesign._baseShader = currentDesign.shaderType || 'none';
         }
         const g = (typeof availableGames !== 'undefined') ? availableGames.at(selectedIndex) : null;
@@ -108,24 +114,7 @@
         const modal = document.getElementById('custom-modal');
         if (!modal) return;
 
-        if (!document.getElementById('sgl-quick-presets')) {
-            const ioBar = modal.querySelector('.theme-io-bar');
-            if (ioBar) {
-                const bar = document.createElement('div');
-                bar.id = 'sgl-quick-presets';
-                bar.style.cssText = 'background:rgba(0,0,0,0.28);padding:8px 10px;border-radius:10px;margin-bottom:10px;display:flex;flex-direction:column;gap:6px;';
-                bar.innerHTML = `
-                    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;font-size:11.5px;">
-                        <b style="color:#FFD700;">Инструменты макета и HUD:</b>
-                        <div style="display:flex;gap:6px;flex:1;justify-content:flex-end;">
-                            <button type="button" class="btn-small" onclick="enterHudEditor()">Редактор HUD (F2)</button>
-                            <button type="button" class="btn-small btn-accent" onclick="openExternalThemeStudio()">Открыть Theme Studio</button>
-                        </div>
-                    </div>
-                `;
-                ioBar.after(bar);
-            }
-        }
+        /* Инструменты HUD и Theme Studio перенесены во вкладку «Студия и HUD» */
 
         const mediaList = document.getElementById('media-settings-list');
         if (mediaList && gamesData) {

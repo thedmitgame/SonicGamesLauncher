@@ -208,16 +208,26 @@ function ensureFinderModal() {
         bg.onclick = (e) => { if (e.target === bg) closeQuickFinder(); };
 
         const box = mk('div', 'sgl-finder-box', '');
-        const inp = mk('input', 'args-input', 'margin-top:0;margin-bottom:8px;width:100%;padding:9px 12px;font-size:13px;user-select:text !important;');
+        const topRow = mk('div', '', 'display:flex;gap:6px;align-items:center;margin-bottom:8px;');
+        const inp = mk('input', 'args-input', 'margin-top:0;flex:1;padding:9px 12px;font-size:13px;user-select:text !important;');
         inp.type = 'text';
         inp.id = 'sgl-finder-inp';
         inp.placeholder = 'Быстрый поиск игры (стрелки ↑↓ и Enter)...';
+
+        const rBtn = mk('button', 'btn-small', 'padding:8px 11px;white-space:nowrap;', '🎲 Рулетка');
+        rBtn.type = 'button';
+        rBtn.title = 'Выбрать случайную игру';
+        rBtn.onclick = () => {
+            closeQuickFinder();
+            if (typeof window.runLauncherRoulette === 'function') window.runLauncherRoulette();
+        };
+        topRow.append(inp, rBtn);
 
         const list = mk('div', '', 'max-height:260px;overflow-y:auto;display:flex;flex-direction:column;gap:3px;');
         list.id = 'sgl-finder-list';
 
         inp.oninput = () => { finderIdx = 0; renderFinderResults(); };
-        box.append(inp, list);
+        box.append(topRow, list);
         bg.appendChild(box);
         document.body.appendChild(bg);
         return bg;
@@ -377,17 +387,7 @@ window.syncFavoritesFilterPill = function() {
     };
 
     function injectTopSearchBtn() {
-        if (document.getElementById('sgl-search-top-btn')) return;
-        const all = Array.from(document.getElementsByTagName('*'));
-        const topBar = all.find(el => el.dataset && el.dataset.hudId === 'm5bar') || document.getElementById('m5-quick-bar');
-        if (!topBar) return;
-        const b = mk('button', 'settings-btn', 'padding:6px 10px;font-size:12px;', '');
-        b.type = 'button';
-        b.id = 'sgl-search-top-btn';
-        b.title = 'Быстрый поиск игры (Ctrl+F)';
-        b.innerHTML = '<span class="btn-inner-wrap">' + SVG_SEARCH + '</span>';
-        b.onclick = window.openQuickFinder;
-        topBar.prepend(b);
+        /* Перенесено в единый хаб js/topbar-hubs.js */
     }
 
     const _bootLib = () => {

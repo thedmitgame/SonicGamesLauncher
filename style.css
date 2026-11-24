@@ -1258,3 +1258,332 @@ footer {
     background: #141b2d;
     color: #ffffff;
 }
+
+/* === UX OPTIMIZATION v1.3.1: CORNER DOCK, UNIFIED CUSTOMIZER & EMPTY STATE === */
+.dock-corner { right: 112px; }
+.dock-corner:hover {
+    background: rgba(37, 99, 235, 0.55);
+    transform: scale(1.1);
+}
+
+/* Безопасный отступ между верхней 4-хабовой панелью и заголовком */
+body.layout-classic header:not([style*="top:"]) {
+    margin-top: 46px !important;
+}
+@media (min-width: 1320px) {
+    body.layout-classic header:not([style*="top:"]) {
+        margin-top: 16px !important;
+    }
+}
+
+/* Унифицированная тёмно-стеклянная палитра окна кастомизации */
+#custom-modal .tab-btn {
+    min-width: 92px;
+    font-size: 11.5px;
+    padding: 7px 8px;
+}
+#custom-modal .tab-btn.active {
+    background: #2563eb !important;
+    color: #ffffff !important;
+}
+#custom-modal .btn-small,
+#custom-modal .btn-accent,
+#custom-modal .btn-reset {
+    background: rgba(255, 255, 255, 0.08) !important;
+    border: 1px solid rgba(255, 255, 255, 0.16) !important;
+    color: #f1f5f9 !important;
+    box-shadow: none !important;
+    transition: background 0.18s ease, border-color 0.18s ease, transform 0.15s ease;
+}
+#custom-modal .btn-small:hover,
+#custom-modal .btn-accent:hover,
+#custom-modal .btn-reset:hover {
+    background: rgba(255, 255, 255, 0.16) !important;
+    border-color: rgba(255, 255, 255, 0.34) !important;
+}
+#custom-modal .btn-clear:hover {
+    background: rgba(220, 38, 38, 0.32) !important;
+    border-color: rgba(248, 113, 113, 0.55) !important;
+    color: #fecaca !important;
+}
+#custom-modal .modal-actions .close-modal-btn {
+    background: #2563eb !important;
+    border: 1px solid #3b82f6 !important;
+    color: #ffffff !important;
+    box-shadow: 0 6px 18px rgba(37, 99, 235, 0.38) !important;
+}
+#custom-modal .modal-actions .close-modal-btn:hover {
+    background: #1d4ed8 !important;
+}
+
+.studio-section-card {
+    background: rgba(255, 255, 255, 0.035);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    padding: 12px;
+    margin-bottom: 10px;
+}
+.studio-section-title {
+    font-size: 12px;
+    font-weight: 800;
+    color: var(--title-color, #FFD700);
+    margin-bottom: 10px;
+    letter-spacing: 0.4px;
+}
+.studio-tools-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+}
+.studio-tools-grid .btn-small {
+    padding: 9px 10px;
+    text-align: center;
+    justify-content: center;
+    font-weight: 600;
+}
+
+.sgl-fine-tune {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    padding: 8px 12px;
+}
+.sgl-fine-tune > summary {
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 700;
+    color: rgba(255, 255, 255, 0.85);
+    list-style: none;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 4px 0;
+}
+.sgl-fine-tune > summary::after {
+    content: "▾";
+    font-size: 13px;
+    opacity: 0.7;
+    transition: transform 0.2s ease;
+}
+.sgl-fine-tune[open] > summary::after {
+    transform: rotate(180deg);
+}
+.sgl-fine-tune-body {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* Улучшенное пустое состояние (Empty State) */
+.empty-state {
+    max-width: 440px;
+    width: 90%;
+    text-align: center;
+    background: rgba(11, 16, 29, 0.72);
+    backdrop-filter: blur(16px);
+    padding: 32px 34px;
+    border-radius: 20px;
+    border: 1.5px solid rgba(255, 215, 0, 0.32);
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.65), 0 0 32px rgba(37, 99, 235, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+}
+.empty-state-icon {
+    width: 68px;
+    height: 68px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(255, 215, 0, 0.18) 0%, rgba(37, 99, 235, 0.12) 65%, transparent 100%);
+    border: 1.5px solid rgba(255, 215, 0, 0.42);
+    box-shadow: 0 0 24px rgba(255, 215, 0, 0.22);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 4px;
+}
+.empty-state-title {
+    font-size: 18px;
+    font-weight: 800;
+    color: var(--title-color, #FFD700);
+    letter-spacing: 0.4px;
+}
+.empty-state-desc {
+    font-size: 12.5px;
+    line-height: 1.5;
+    opacity: 0.78;
+    max-width: 340px;
+}
+.empty-state-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 8px;
+    flex-wrap: wrap;
+    justify-content: center;
+    width: 100%;
+}
+.empty-btn-primary {
+    background: #2563eb;
+    border: 1px solid #3b82f6;
+    color: #ffffff;
+    padding: 10px 18px;
+    border-radius: 10px;
+    font-size: 12.5px;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 6px 18px rgba(37, 99, 235, 0.42);
+    transition: transform 0.15s ease, background 0.18s ease;
+}
+.empty-btn-primary:hover {
+    background: #1d4ed8;
+    transform: translateY(-1px);
+}
+.empty-btn-secondary {
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    color: var(--text-color, #ffffff);
+    padding: 10px 16px;
+    border-radius: 10px;
+    font-size: 12.5px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.15s ease, background 0.18s ease, border-color 0.18s ease;
+}
+.empty-btn-secondary:hover {
+    background: rgba(255, 255, 255, 0.16);
+    border-color: rgba(255, 255, 255, 0.4);
+    transform: translateY(-1px);
+}
+body.sgl-light-ui .empty-state {
+    background: rgba(255, 255, 255, 0.92);
+    color: #0F172A;
+    border: 2px solid #0F172A;
+    box-shadow: 8px 8px 0 rgba(15, 23, 42, 0.85);
+}
+body.sgl-light-ui .empty-btn-secondary {
+    color: #0F172A;
+    border-color: rgba(15, 23, 42, 0.35);
+    background: rgba(15, 23, 42, 0.06);
+}
+
+/* === BLOCK 1: SAVE-REACTIVE SUPER MODE & BONUS CARD STYLES === */
+@keyframes sglSuperGlowPulse {
+    0%, 100% {
+        box-shadow: 0 16px 38px rgba(0, 0, 0, 0.72), 0 0 22px rgba(255, 215, 0, 0.58), 0 0 42px rgba(250, 204, 21, 0.28);
+    }
+    50% {
+        box-shadow: 0 20px 44px rgba(0, 0, 0, 0.78), 0 0 32px rgba(255, 215, 0, 0.88), 0 0 58px rgba(245, 158, 11, 0.44);
+    }
+}
+@keyframes sglSuperLevitate {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-7px); }
+}
+@keyframes sglSuperCharAura {
+    0%, 100% { filter: drop-shadow(0 0 14px rgba(255, 215, 0, 0.52)) drop-shadow(0 12px 26px rgba(0, 0, 0, 0.72)); }
+    50% { filter: drop-shadow(0 0 26px rgba(255, 215, 0, 0.86)) drop-shadow(0 12px 26px rgba(0, 0, 0, 0.72)); }
+}
+
+.game-card.selected.sgl-card-super:not(.has-box3d) .cover-box {
+    border-color: #FFD700 !important;
+    animation: sglSuperGlowPulse 2.8s ease-in-out infinite, sglSuperLevitate 3.4s ease-in-out infinite;
+}
+.game-card.selected.sgl-card-super.has-box3d .b3d-front-in {
+    border-color: #FFD700 !important;
+    animation: sglSuperGlowPulse 2.8s ease-in-out infinite;
+}
+.game-card.selected.sgl-card-super .sgl-dec-wrap {
+    filter: drop-shadow(0 0 10px rgba(255, 215, 0, 0.55));
+}
+body.sgl-super-active .char-art.visible {
+    animation: sglSuperCharAura 2.8s ease-in-out infinite;
+}
+
+.sgl-super-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 4px;
+    padding: 2px 9px;
+    border-radius: 999px;
+    background: linear-gradient(135deg, rgba(250, 204, 21, 0.28), rgba(245, 158, 11, 0.22));
+    border: 1px solid rgba(255, 215, 0, 0.72);
+    color: #FDE047;
+    font-size: calc(9.5px * var(--font-scale));
+    font-weight: 900;
+    letter-spacing: 1px;
+    text-shadow: 0 0 8px rgba(255, 215, 0, 0.55);
+    box-shadow: 0 0 12px rgba(255, 215, 0, 0.25);
+}
+.sgl-super-badge-sc {
+    background: linear-gradient(135deg, rgba(250, 204, 21, 0.3), rgba(245, 158, 11, 0.22)) !important;
+    border-color: rgba(255, 215, 0, 0.8) !important;
+    color: #FDE047 !important;
+}
+
+/* Бонусный стиль 1: Super Gold (Открывается за 7 Изумрудов) */
+body.style-super_gold .cover-box {
+    border: 2px solid rgba(255, 215, 0, 0.48);
+    background: linear-gradient(160deg, rgba(42, 29, 6, 0.86), rgba(14, 10, 4, 0.9));
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.6), inset 0 0 18px rgba(255, 215, 0, 0.14);
+}
+body.style-super_gold .game-card.selected .cover-box {
+    border: 2.5px solid #FFD700;
+    box-shadow: 0 18px 42px rgba(0, 0, 0, 0.78), 0 0 30px rgba(255, 215, 0, 0.65), inset 0 0 20px rgba(255, 215, 0, 0.25);
+}
+body.style-super_gold .settings-btn,
+body.style-super_gold .corner-btn,
+body.style-super_gold .nav-arrow {
+    background: rgba(28, 20, 6, 0.72);
+    border: 1.5px solid rgba(255, 215, 0, 0.45);
+    color: #FEF3C7;
+}
+body.style-super_gold .settings-btn:hover,
+body.style-super_gold .corner-btn:hover {
+    background: rgba(245, 158, 11, 0.35);
+    border-color: #FFD700;
+}
+
+/* Бонусный стиль 2: Chaos Emerald (Открывается за 7 Изумрудов) */
+body.style-chaos_emerald .cover-box {
+    border: 2px solid rgba(52, 211, 153, 0.48);
+    background: linear-gradient(160deg, rgba(4, 38, 30, 0.86), rgba(6, 18, 20, 0.92));
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.6), inset 0 0 18px rgba(16, 185, 129, 0.18);
+}
+body.style-chaos_emerald .game-card.selected .cover-box {
+    border: 2.5px solid #4ADE80;
+    box-shadow: 0 18px 42px rgba(0, 0, 0, 0.78), 0 0 32px rgba(52, 211, 153, 0.65), inset 0 0 22px rgba(52, 211, 153, 0.28);
+}
+body.style-chaos_emerald .settings-btn,
+body.style-chaos_emerald .corner-btn,
+body.style-chaos_emerald .nav-arrow {
+    background: rgba(4, 34, 28, 0.72);
+    border: 1.5px solid rgba(52, 211, 153, 0.45);
+    color: #ECFDF5;
+}
+body.style-chaos_emerald .settings-btn:hover,
+body.style-chaos_emerald .corner-btn:hover {
+    background: rgba(16, 185, 129, 0.32);
+    border-color: #4ADE80;
+}
+
+/* === SUPER AURA VARIANTS === */
+@keyframes sglHyperRainbow {
+    0%   { border-color:#ef4444 !important; box-shadow:0 16px 40px rgba(0,0,0,0.75), 0 0 32px rgba(239,68,68,0.85); }
+    20%  { border-color:#facc15 !important; box-shadow:0 16px 40px rgba(0,0,0,0.75), 0 0 32px rgba(250,204,21,0.85); }
+    40%  { border-color:#22c55e !important; box-shadow:0 16px 40px rgba(0,0,0,0.75), 0 0 32px rgba(34,197,94,0.85); }
+    60%  { border-color:#38bdf8 !important; box-shadow:0 16px 40px rgba(0,0,0,0.75), 0 0 32px rgba(56,189,248,0.85); }
+    80%  { border-color:#a855f7 !important; box-shadow:0 16px 40px rgba(0,0,0,0.75), 0 0 32px rgba(168,85,247,0.85); }
+    100% { border-color:#ef4444 !important; box-shadow:0 16px 40px rgba(0,0,0,0.75), 0 0 32px rgba(239,68,68,0.85); }
+}
+body.sgl-super-aura-hyper .game-card.selected.sgl-card-super:not(.has-box3d) .cover-box {
+    animation: sglHyperRainbow 3.2s linear infinite, sglSuperLevitate 3.4s ease-in-out infinite;
+}
+body.sgl-super-aura-dark .game-card.selected.sgl-card-super:not(.has-box3d) .cover-box {
+    border-color: #9333ea !important;
+    box-shadow: 0 18px 42px rgba(0,0,0,0.9), 0 0 30px rgba(147,51,234,0.85), inset 0 0 18px rgba(88,28,135,0.6) !important;
+}
+body.sgl-super-aura-shield .game-card.selected.sgl-card-super:not(.has-box3d) .cover-box {
+    border-color: #38bdf8 !important;
+    box-shadow: 0 0 0 4px rgba(56,189,248,0.28), 0 0 36px rgba(56,189,248,0.85) !important;
+}

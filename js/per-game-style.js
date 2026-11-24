@@ -51,7 +51,7 @@
         currentDesign.launchAnim = effLaunch;
         currentDesign.clickFx = effClick;
 
-        document.body.classList.remove('style-glass', 'style-neon', 'style-retro', 'style-sega', 'style-console');
+        document.body.classList.remove('style-glass', 'style-neon', 'style-retro', 'style-sega', 'style-console', 'style-super_gold', 'style-chaos_emerald');
         document.body.classList.add('style-' + effCard);
 
         if (typeof window.applyVisualFxPack === 'function') window.applyVisualFxPack();
@@ -254,8 +254,9 @@ const _bootPgs = () => {
         const origSaveCustom = window.saveAndCloseCustom;
         if (typeof origSaveCustom === 'function') {
             window.saveAndCloseCustom = async function() {
-                const r = await origSaveCustom.apply(this, arguments);
+                if (typeof syncAllControlsToDesign === 'function') syncAllControlsToDesign();
                 captureBaseIfClean();
+                const r = await origSaveCustom.apply(this, arguments);
                 const g = availableGames.at(selectedIndex);
                 if (g) window.applyPerGameVisuals(g.id);
                 return r;

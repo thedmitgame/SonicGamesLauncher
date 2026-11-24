@@ -1,20 +1,49 @@
-# Сборка и кэш Python
-build/
-dist/
+# === Python & Кэш ===
 __pycache__/
 *.py[cod]
-*.spec
+*$py.class
+*.pyo
+*.pyd
+venv/
+.venv/
+env/
+.env
 
-# Пользовательские данные и конфиги
+# === Сборка PyInstaller (SonicLauncher.spec оставляем в Git!) ===
+build/
+dist/
+
+# === Пользовательские конфиги и локальные пути ===
 sonic_launcher_config.json
-favorites.json
+sonic_launcher_config*.bak
 mod_managers.json
-rsdk_cache/
+
+# === Временные папки, кэш, сейвы и экспорты лаунчера ===
 backups/
+exports/
+rsdk_cache/
 screenshots/
-images/
-models/
-sounds/
-videos/
-fonts/
-themes/
+roms/
+romhacks/
+
+# === Временные скрипты-патчеры, дампы и отчёты ИИ ===
+dumps/
+project_dump.txt
+dump_*.txt
+*_part*.txt
+audit_report.txt
+make_dump.py
+audit_project.py
+ai_studio_code.py
+patch*.py
+fix*.py
+*_patcher.py
+
+# === Системный мусор ОС и IDE ===
+.vscode/
+.idea/
+Thumbs.db
+Desktop.ini
+.DS_Store
+*.log
+*.tmp

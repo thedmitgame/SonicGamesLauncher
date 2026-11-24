@@ -1,0 +1,751 @@
+/* === AUTONOMOUS MODULE: ARCADE & EXTRAS HUB v2.0 (NO EMOJI, ORIGINAL CHAO, ANIMATED SLOTS) === */
+(function() {
+    const STORE_KEY = 'sgl_arcade_hub_v1';
+    let liveStats = { totalSeconds: 0, installedCount: 0, emeraldsCur: 0, emeraldsMax: 7, achDone: 0, achMax: 10, modsCount: 0, shotsCount: 0, shelvesCount: 0 };
+    let saveSummary = { anyAllEmeralds: false, completedIds: new Array(), games: {} };
+    let chaoRaf = 0, quizAudio = null, quizTimer = 0, wasRunning = null;
+
+    const SVG_PAD = '<svg class="btn-svg-icon" viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="4"/><line x1="6" y1="12" x2="10" y2="12"/><line x1="8" y1="10" x2="8" y2="14"/><circle cx="15.5" cy="11" r="1"/><circle cx="17.5" cy="13" r="1"/></svg>';
+    const SVG_RING = '<svg class="btn-svg-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="7" stroke="#fde047" stroke-width="2.6"/></svg>';
+    const SVG_STAR = '<svg class="btn-svg-icon" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>';
+    const SVG_BOLT = '<svg class="btn-svg-icon" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>';
+    const SVG_NOTE = '<svg class="btn-svg-icon" viewBox="0 0 24 24"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>';
+
+    function mk(tag, cls, css, txt) {
+        const e = document.createElement(tag);
+        if (cls) e.className = cls;
+        if (css) e.style.cssText = css;
+        if (txt !== undefined && txt !== null) e.textContent = txt;
+        return e;
+    }
+
+    function todayKey() {
+        const d = new Date();
+        return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    }
+
+    function loadState() {
+        const def = { rings: 100, chao: { feed: 0, pet: 0, xp: 0 }, doneCh: new Array(), activeCh: null, emblems: new Array(), titles: new Array(), activeTitle: '', heatmap: {}, quizBest: 0, spins: 0, lastDaily: '' };
+        if (diskCache) return Object.assign(def, diskCache);
+        try { return Object.assign(def, JSON.parse(localStorage.getItem(STORE_KEY) || '{}')); } catch (_) { return def; }
+    }
+    let diskCache = null;
+    function saveState(st) {
+        diskCache = Object.assign({}, st);
+        try { localStorage.setItem(STORE_KEY, JSON.stringify(st)); } catch (_) {}
+        fetch('/api/arcade/state', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(st) }).catch(() => {});
+    }
+    async function syncStateFromDisk() {
+        try {
+            const d = await (await fetch('/api/arcade/state')).json();
+            if (d && typeof d === 'object' && Object.keys(d).length > 0) {
+                const merged = Object.assign(loadState(), d);
+                diskCache = merged;
+                try { localStorage.setItem(STORE_KEY, JSON.stringify(merged)); } catch (_) {}
+            }
+        } catch (_) {}
+    }
+
+    function logHeatmap(minsAdd, launchAdd) {
+        const st = loadState(), k = todayKey();
+        if (!st.heatmap) st.heatmap = {};
+        const cur = st.heatmap[k] || { mins: 0, launches: 0 };
+        cur.mins = +(cur.mins + (minsAdd || 0)).toFixed(1);
+        cur.launches += (launchAdd || 0);
+        st.heatmap[k] = cur;
+        saveState(st);
+    }
+
+    function injectStyles() {
+        if (document.getElementById('sgl-arcade-hub-css')) return;
+        const st = mk('style', '', '');
+        st.id = 'sgl-arcade-hub-css';
+        st.textContent = Array.of(
+            '.ah-modal{width:920px;max-width:96vw;max-height:90vh;display:flex;flex-direction:column;gap:12px;}',
+            '.ah-top{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;}',
+            '.ah-rings{display:inline-flex;align-items:center;gap:6px;padding:5px 13px;border-radius:999px;background:rgba(250,204,21,0.16);border:1px solid rgba(250,204,21,0.45);color:#fde047;font-size:12px;font-weight:900;}',
+            '.ah-body{flex:1;min-height:430px;max-height:62vh;overflow-y:auto;padding-right:4px;}',
+            '.ah-chao-grid{display:grid;grid-template-columns:320px minmax(0,1fr);gap:16px;align-items:stretch;}',
+            '.ah-stage{background:radial-gradient(circle at 50% 45%,rgba(56,189,248,0.22),#070b14 78%);border:1px solid rgba(255,255,255,0.14);border-radius:14px;position:relative;height:360px;overflow:hidden;cursor:grab;}',
+            '.ah-card{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:8px;}',
+            '.ah-bar{height:8px;border-radius:999px;background:rgba(255,255,255,0.1);overflow:hidden;}',
+            '.ah-bar>i{display:block;height:100%;background:linear-gradient(90deg,#38bdf8,#facc15);transition:width 0.3s;}',
+            '.ah-emb-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:8px;margin-bottom:14px;}',
+            '.ah-emb{padding:9px;border-radius:10px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);text-align:center;font-size:11px;display:flex;flex-direction:column;gap:5px;align-items:center;}',
+            '.ah-emb.on{border-color:#fde047;background:rgba(250,204,21,0.1);}.ah-emb.off{opacity:0.48;filter:grayscale(0.9);border-style:dashed;}',
+            '.ah-heat-wrap{overflow-x:auto;padding:10px;background:rgba(0,0,0,0.28);border:1px solid rgba(255,255,255,0.1);border-radius:12px;}',
+            '.ah-heat-grid{display:grid;grid-auto-flow:column;grid-template-rows:repeat(7,11px);gap:3px;width:max-content;}',
+            '.ah-cell{width:11px;height:11px;border-radius:2px;background:#0f172a;border:1px solid rgba(255,255,255,0.05);}',
+            '.ah-c1{background:#064e3b;}.ah-c2{background:#059669;}.ah-c3{background:#10b981;}.ah-c4{background:#34d399;box-shadow:0 0 6px rgba(52,211,153,0.6);}',
+            '@keyframes ahReelSpin{0%{transform:translateY(-22px);filter:blur(2px)}50%{transform:translateY(22px);filter:blur(2px)}100%{transform:translateY(-22px);filter:blur(2px)}}',
+            '@keyframes ahReelStop{0%{transform:scale(1.18)}100%{transform:scale(1)}}',
+            '.ah-slots{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:10px 0;}',
+            '.ah-reel{height:84px;border-radius:12px;background:linear-gradient(180deg,#090d16,#1e1b4b,#090d16);border:2px solid #facc15;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;overflow:hidden;box-shadow:inset 0 0 18px rgba(0,0,0,0.85);}',
+            '.ah-reel-inner{display:flex;flex-direction:column;align-items:center;gap:3px;}',
+            '.ah-reel.spinning .ah-reel-inner{animation:ahReelSpin 0.14s linear infinite;}',
+            '.ah-reel.stopped .ah-reel-inner{animation:ahReelStop 0.24s cubic-bezier(0.34,1.56,0.64,1);}',
+            '.ah-quiz-opts{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;}',
+            '.ah-title-pill{display:inline-block;padding:2px 9px;border-radius:999px;background:rgba(250,204,21,0.18);border:1px solid rgba(250,204,21,0.5);color:#fde047;font-size:10.5px;font-weight:800;}'
+        ).join('\n');
+        document.head.appendChild(st);
+    }
+
+    const CHAOS_CHALLENGES = Array.of(
+        { id: 'c01', game: 'sonic1', name: 'Первый Изумруд S1', desc: 'Добыть +1 Изумруд в Sonic 1 Forever за сессию', reward: 60, type: 'emeralds', need: 1 },
+        { id: 'c02', game: 'sonic2', name: 'Охотник за Хаосом S2', desc: 'Добыть +1 Изумруд в Sonic 2 Absolute', reward: 65, type: 'emeralds', need: 1 },
+        { id: 'c03', game: 'soniccd', name: 'Камень Времени CD', desc: 'Найти +1 Камень Времени в Sonic CD Restored', reward: 70, type: 'emeralds', need: 1 },
+        { id: 'c04', game: 'sonic3', name: 'Сила A.I.R.', desc: 'Добыть +1 Изумруд в Sonic 3 A.I.R.', reward: 70, type: 'emeralds', need: 1 },
+        { id: 'c05', game: 'mania', name: 'Мания Изумрудов', desc: 'Добыть +1 Изумруд в Sonic Mania', reward: 75, type: 'emeralds', need: 1 },
+        { id: 'c06', game: 'srb2', name: '3D-Изумруд SRB2', desc: 'Получить +1 Изумруд в Sonic Robo Blast 2', reward: 80, type: 'emeralds', need: 1 },
+        { id: 'c07', game: 'any', name: 'Скоростной разогрев', desc: 'Провести в любой игре минимум 5 минут за сессию', reward: 35, type: 'mins', need: 5 },
+        { id: 'c08', game: 'any', name: 'Аркадный забег', desc: 'Провести в любой игре минимум 15 минут за сессию', reward: 60, type: 'mins', need: 15 },
+        { id: 'c09', game: 'any', name: 'Сверхзвуковой марафон', desc: 'Играть 30 минут подряд в одной сессии', reward: 110, type: 'mins', need: 30 },
+        { id: 'c10', game: 'any', name: 'Охотник за трофеями', desc: 'Открыть +1 новое достижение в выбранной игре', reward: 85, type: 'ach', need: 1 },
+        { id: 'c11', game: 'any', name: 'Двойной триумф', desc: 'Открыть +2 достижения за одну игровую сессию', reward: 140, type: 'ach', need: 2 },
+        { id: 'c12', game: 'sonic1', name: 'Очковый штурм S1', desc: 'Набрать +10 000 очков в сохранении Sonic 1 Forever', reward: 55, type: 'score', need: 10000 },
+        { id: 'c13', game: 'sonic2', name: 'Рекордсмен S2', desc: 'Набрать +20 000 очков в Sonic 2 Absolute', reward: 65, type: 'score', need: 20000 },
+        { id: 'c14', game: 'soniccd', name: 'Мастер скорости CD', desc: 'Набрать +15 000 очков в Sonic CD Restored', reward: 65, type: 'score', need: 15000 },
+        { id: 'c15', game: 'mania', name: 'Звезда Студиополиса', desc: 'Набрать +25 000 очков в Sonic Mania', reward: 75, type: 'score', need: 25000 },
+        { id: 'c16', game: 'srb2', name: 'Герой 3D-Зон', desc: 'Набрать +15 000 очков в Sonic Robo Blast 2', reward: 75, type: 'score', need: 15000 },
+        { id: 'c17', game: 'any', name: 'Стальные нервы', desc: 'Играть 10+ мин. без потери жизней в сейве', reward: 95, type: 'noloss', need: 10 },
+        { id: 'c18', game: 'any', name: 'Запас жизней', desc: 'Увеличить число жизней в сейве минимум на +2', reward: 70, type: 'lives', need: 2 },
+        { id: 'c19', game: 'any', name: 'Двойной Изумруд', desc: 'Собрать +2 Изумруда за одну игровую сессию', reward: 150, type: 'emeralds', need: 2 },
+        { id: 'c20', game: 'any', name: 'Финал кампании', desc: 'Получить статус прохождения CLEAR в слоте игры', reward: 180, type: 'clear', need: 1 }
+    );
+
+    const RARE_TITLES = Array.of('Сверхзвуковой', 'Повелитель Изумрудов', 'Король Казино', 'Легенда Мобиуса', 'Мастер Хаоса', 'Хранитель Времени');
+
+    const EMBLEM_DEFS = Array.of(
+        { id: 'e01', code: '01', name: 'Первый старт', cond: 'Запустить игру через лаунчер', fn: (s, a) => Object.keys(a.heatmap || {}).length >= 1 },
+        { id: 'e02', code: '02', name: '100% Кампания', cond: 'Пройти любую игру на 100% / 7 Изумрудов', fn: () => (saveSummary.completedIds || new Array()).length >= 1 },
+        { id: 'e03', code: '03', name: 'Семь Изумрудов', cond: 'Собрать 7+ Изумрудов в сумме', fn: (s) => (s.emeraldsCur || 0) >= 7 },
+        { id: 'e04', code: '04', name: 'Хранитель Хаоса', cond: 'Собрать 14+ Изумрудов в сумме', fn: (s) => (s.emeraldsCur || 0) >= 14 },
+        { id: 'e05', code: '05', name: 'Моддер-инженер', cond: 'Установить 5+ модов в библиотеку', fn: (s) => (s.modsCount || 0) >= 5 },
+        { id: 'e06', code: '06', name: 'Ночной бегун', cond: 'Запустить игру ночью (23:00–05:00)', fn: (s, a) => Boolean(a.nightRun) },
+        { id: 'e07', code: '07', name: 'Дизайнер тем', cond: 'Настроить UI Builder или 3D-боксы', fn: () => Boolean(window.currentDesign?.uiThemeBuilder?.enabled || window.currentDesign?.box3d?._global?.enabled) },
+        { id: 'e08', code: '08', name: 'Первый вызов', cond: 'Выполнить 1 Челлендж Хаоса', fn: (s, a) => (a.doneCh || new Array()).length >= 1 },
+        { id: 'e09', code: '09', name: 'Ветеран Хаоса', cond: 'Выполнить 5 Челленджей Хаоса', fn: (s, a) => (a.doneCh || new Array()).length >= 5 },
+        { id: 'e10', code: '10', name: 'Повелитель вызовов', cond: 'Выполнить 10 Челленджей Хаоса', fn: (s, a) => (a.doneCh || new Array()).length >= 10 },
+        { id: 'e11', code: '11', name: 'Джекпот 777', cond: 'Сорвать Джекпот в Casino Night Slots', fn: (s, a) => Boolean(a.slotJackpot) },
+        { id: 'e12', code: '12', name: 'Меломан', cond: 'Серия 3 победы в «Угадай трек»', fn: (s, a) => (a.quizBest || 0) >= 3 },
+        { id: 'e13', code: '13', name: 'Маэстро OST', cond: 'Серия 5 побед в «Угадай трек»', fn: (s, a) => (a.quizBest || 0) >= 5 },
+        { id: 'e14', code: '14', name: 'Друг Чао', cond: 'Прокачать Кристального Чао до 3 уровня', fn: (s, a) => getChaoLevel(s, a) >= 3 },
+        { id: 'e15', code: '15', name: 'Мастер Сада Чао', cond: 'Прокачать Кристального Чао до 5 уровня', fn: (s, a) => getChaoLevel(s, a) >= 5 },
+        { id: 'e16', code: '16', name: 'Час на скорости', cond: 'Наиграть 1+ час в лаунчере', fn: (s) => (s.totalSeconds || 0) >= 3600 },
+        { id: 'e17', code: '17', name: 'Марафонец', cond: 'Наиграть 5+ часов в лаунчере', fn: (s) => (s.totalSeconds || 0) >= 18000 },
+        { id: 'e18', code: '18', name: 'Легенда времени', cond: 'Наиграть 10+ часов в лаунчере', fn: (s) => (s.totalSeconds || 0) >= 36000 },
+        { id: 'e19', code: '19', name: 'Коллекционер', cond: 'Подключить 3+ игры в лаунчере', fn: (s) => (s.installedCount || 0) >= 3 },
+        { id: 'e20', code: '20', name: 'Полная полка', cond: 'Подключить 5+ игр в лаунчере', fn: (s) => (s.installedCount || 0) >= 5 },
+        { id: 'e21', code: '21', name: 'Десять трофеев', cond: 'Открыть 10+ достижений в играх', fn: (s) => (s.achDone || 0) >= 10 },
+        { id: 'e22', code: '22', name: 'Зал славы', cond: 'Открыть 25+ достижений в играх', fn: (s) => (s.achDone || 0) >= 25 },
+        { id: 'e23', code: '23', name: 'Фотограф зон', cond: 'Сделать 3+ игровых скриншота', fn: (s) => (s.shotsCount || 0) >= 3 },
+        { id: 'e24', code: '24', name: 'Кольцевой магнат', cond: 'Накопить 500+ Колец лаунчера', fn: (s, a) => (a.rings || 0) >= 500 }
+    );
+
+    function getChaoLevel(stats, st) {
+        const xp = Math.floor((stats.totalSeconds || 0) / 180) + (st.chao?.xp || 0) + (stats.emeraldsCur || 0) * 12;
+        return Math.max(1, Math.floor(xp / 25) + 1);
+    }
+
+    function determineChaoForm(stats) {
+        const completed = (saveSummary.completedIds || new Array()).length;
+        if ((stats.emeraldsCur || 0) >= 7 || completed >= 1) return { id: 'gold', name: 'Chaos Gold', body: '#facc15', tip: '#fef08a', belly: '#fffbeb', wing: '#fde047', halo: '#fef08a' };
+        if ((stats.emeraldsCur || 0) >= 3 || (stats.achDone || 0) >= 10) return { id: 'hero', name: 'Hero Crystal', body: '#f8fafc', tip: '#38bdf8', belly: '#bae6fd', wing: '#7dd3fc', halo: '#facc15' };
+        const h = new Date().getHours();
+        if (h >= 22 || h < 5 || (stats.modsCount || 0) >= 5) return { id: 'dark', name: 'Dark Crystal', body: '#1e1b4b', tip: '#e11d48', belly: '#4c1d95', wing: '#f43f5e', halo: '#fb7185' };
+        return { id: 'neutral', name: 'Neutral Crystal', body: '#38bdf8', tip: '#fde047', belly: '#bae6fd', wing: '#f472b6', halo: '#fde047' };
+    }
+
+    async function pullLiveStats() {
+        await syncStateFromDisk();
+        try {
+            const p = await (await fetch('/api/profile_summary')).json();
+            const c = await (await fetch('/api/challenges/stats')).json();
+            const s = await (await fetch('/api/saves/summary')).json();
+            liveStats = Object.assign(liveStats, p || {}, c || {});
+            if (s && s.ok) saveSummary = s;
+        } catch (_) {}
+        evaluateEmblems();
+    }
+
+    function evaluateEmblems() {
+        const st = loadState();
+        let added = 0;
+        EMBLEM_DEFS.forEach(em => {
+            if (!st.emblems.includes(em.id) && em.fn(liveStats, st)) { st.emblems.push(em.id); st.rings = (st.rings || 0) + 25; added++; }
+        });
+        if (added > 0) {
+            saveState(st);
+            if (typeof showToast === 'function') showToast('Открыто новых эмблем: ' + added + ' (+' + (added * 25) + ' Колец)');
+        }
+    }
+
+    async function captureGameSnapshot(gid) {
+        let em = 0, lives = 0, score = 0, ach = 0, cleared = false;
+        try {
+            const pr = await (await fetch('/api/progress?id=' + encodeURIComponent(gid))).json();
+            em = Number(pr.emeralds || 0);
+            ach = (pr.achievements || new Array()).filter(a => a.done).length;
+            (pr.slots || new Array()).forEach(sl => {
+                const inf = String(sl.info || '');
+                const ml = inf.match(/(?:Жизней|Lives):\s*(\d+)/i);
+                const ms = inf.match(/(?:Очки|Score):\s*(\d+)/i);
+                if (ml) lives = Math.max(lives, parseInt(ml.at(1), 10) || 0);
+                if (ms) score = Math.max(score, parseInt(ms.at(1), 10) || 0);
+                if (inf.toUpperCase().includes('CLEAR')) cleared = true;
+            });
+        } catch (_) {}
+        return { em, lives, score, ach, cleared, ts: Date.now() };
+    }
+
+    async function activateChallenge(ch) {
+        const st = loadState();
+        const curG = (typeof availableGames !== 'undefined' && availableGames.length > 0) ? availableGames.at(selectedIndex) : null;
+        const targetGid = ch.game === 'any' ? (curG ? curG.id : 'sonic1') : ch.game;
+        const snap = await captureGameSnapshot(targetGid);
+        st.activeCh = { id: ch.id, gameId: targetGid, snap };
+        saveState(st);
+        if (typeof playSfx === 'function') playSfx('switch');
+        if (typeof showToast === 'function') showToast('Челлендж активирован: ' + ch.name);
+    }
+
+    async function verifyActiveChallenge(finishedGid, elapsedMins) {
+        const st = loadState();
+        if (!st.activeCh) return;
+        const ch = CHAOS_CHALLENGES.find(x => x.id === st.activeCh.id);
+        if (!ch || (ch.game !== 'any' && ch.game !== finishedGid)) return;
+        const nowSnap = await captureGameSnapshot(finishedGid);
+        const old = st.activeCh.snap || { em: 0, lives: 0, score: 0, ach: 0, cleared: false };
+        let ok = false;
+        if (ch.type === 'emeralds') ok = (nowSnap.em - old.em) >= ch.need;
+        else if (ch.type === 'ach') ok = (nowSnap.ach - old.ach) >= ch.need;
+        else if (ch.type === 'score') ok = (nowSnap.score - old.score) >= ch.need;
+        else if (ch.type === 'lives') ok = (nowSnap.lives - old.lives) >= ch.need;
+        else if (ch.type === 'mins') ok = elapsedMins >= ch.need;
+        else if (ch.type === 'noloss') ok = elapsedMins >= ch.need && nowSnap.lives >= old.lives;
+        else if (ch.type === 'clear') ok = nowSnap.cleared && !old.cleared;
+        if (ok) {
+            if (!st.doneCh.includes(ch.id)) st.doneCh.push(ch.id);
+            st.rings = (st.rings || 0) + ch.reward; st.chao.xp = (st.chao.xp || 0) + 15; st.activeCh = null;
+            saveState(st); if (typeof playSfx === 'function') playSfx('launch');
+            if (typeof showToast === 'function') showToast('Челлендж выполнен: ' + ch.name + ' (+' + ch.reward + ' Колец)!');
+            evaluateEmblems();
+        }
+    }
+
+    function hookSessionTracking() {
+        const origLaunch = window.triggerGameLaunch;
+        if (typeof origLaunch === 'function' && !window._ahLaunchHooked) {
+            window._ahLaunchHooked = true;
+            window.triggerGameLaunch = function(game) {
+                if (game) {
+                    const st = loadState();
+                    const hr = new Date().getHours();
+                    if (hr >= 23 || hr < 5) { st.nightRun = true; saveState(st); }
+                    logHeatmap(0, 1);
+                }
+                return origLaunch.apply(this, arguments);
+            };
+        }
+        setInterval(async () => {
+            try {
+                const r = await (await fetch('/api/playtime_ping')).json();
+                const runId = r.runningId || null;
+                if (runId && !wasRunning) wasRunning = { id: runId, ts: Date.now() };
+                else if (!runId && wasRunning) {
+                    const mins = Math.max(0.5, (Date.now() - wasRunning.ts) / 60000);
+                    logHeatmap(mins, 0);
+                    const st = loadState(); st.chao.xp = (st.chao.xp || 0) + Math.floor(mins); saveState(st);
+                    await verifyActiveChallenge(wasRunning.id, mins);
+                    wasRunning = null; pullLiveStats();
+                }
+            } catch (_) {}
+        }, 6000);
+    }
+
+    function mountChaoCanvas(host, form, onPet) {
+        if (chaoRaf) cancelAnimationFrame(chaoRaf);
+        host.innerHTML = '';
+        const cvs = mk('canvas', '', 'width:100%;height:100%;display:block;');
+        host.appendChild(cvs);
+        const ctx = cvs.getContext('2d');
+        let yaw = 0.2, pitch = 0.05, drag = false, lx = 0, ly = 0, bounce = 0;
+        const sparks = new Array();
+
+        cvs.onpointerdown = e => { drag = true; lx = e.clientX; ly = e.clientY; cvs.setPointerCapture(e.pointerId); };
+        cvs.onpointermove = e => { if (!drag) return; yaw += (e.clientX - lx) * 0.015; pitch = Math.max(-0.4, Math.min(0.4, pitch + (e.clientY - ly) * 0.01)); lx = e.clientX; ly = e.clientY; };
+        cvs.onpointerup = e => {
+            if (drag && Math.hypot(e.clientX - lx, e.clientY - ly) < 6) {
+                bounce = 1; onPet();
+                for (let i = 0; i < 12; i++) sparks.push({ x: cvs.width * 0.5, y: cvs.height * 0.42, vx: (Math.random() - 0.5) * 5.5, vy: -2 - Math.random() * 4, life: 1 });
+            }
+            drag = false;
+        };
+
+        function frame(t) {
+            if (!cvs.isConnected) return;
+            chaoRaf = requestAnimationFrame(frame);
+            const w = host.clientWidth || 320, h = host.clientHeight || 360;
+            if (cvs.width !== w || cvs.height !== h) { cvs.width = w; cvs.height = h; }
+            if (!drag) yaw += 0.014;
+            bounce *= 0.88;
+            ctx.clearRect(0, 0, w, h);
+
+            const bob = Math.sin(t * 0.004) * 7 - bounce * 18;
+            const cx = w * 0.5, cy = h * 0.56 + bob + pitch * 20;
+            const sinY = Math.sin(yaw), cosY = Math.cos(yaw), faceX = sinY * 22;
+
+            ctx.fillStyle = 'rgba(0,0,0,0.45)';
+            ctx.beginPath(); ctx.ellipse(w * 0.5, h * 0.86, 56, 13, 0, 0, Math.PI * 2); ctx.fill();
+
+            // Крылышки за спиной
+            const flap = Math.sin(t * 0.012) * 5;
+            ctx.fillStyle = form.wing; ctx.globalAlpha = 0.78;
+            ctx.beginPath(); ctx.ellipse(cx - 24 - cosY * 6, cy + 22 - flap, 16, 10, -0.5, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.ellipse(cx + 24 + cosY * 6, cy + 22 - flap, 16, 10, 0.5, 0, Math.PI * 2); ctx.fill();
+
+            // Ножки и пухлое туловище Чао
+            ctx.globalAlpha = 0.92;
+            ctx.fillStyle = form.body;
+            ctx.beginPath(); ctx.ellipse(cx - 14 + sinY * 6, cy + 62, 11, 16, -0.2, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.ellipse(cx + 14 + sinY * 6, cy + 62, 11, 16, 0.2, 0, Math.PI * 2); ctx.fill();
+
+            const bg = ctx.createRadialGradient(cx - 10, cy + 16, 6, cx, cy + 32, 38);
+            bg.addColorStop(0, '#ffffff'); bg.addColorStop(0.35, form.body); bg.addColorStop(1, form.belly);
+            ctx.fillStyle = bg;
+            ctx.beginPath(); ctx.ellipse(cx, cy + 32, 30, 35, 0, 0, Math.PI * 2); ctx.fill();
+
+            // Ручки-лапки с цветными кончиками
+            const armWave = Math.sin(t * 0.005) * 0.25;
+            ctx.save(); ctx.translate(cx - 32, cy + 26); ctx.rotate(0.45 + armWave);
+            ctx.fillStyle = form.body; ctx.beginPath(); ctx.ellipse(0, 8, 9, 18, 0, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = form.tip; ctx.beginPath(); ctx.arc(0, 20, 7.5, 0, Math.PI * 2); ctx.fill();
+            ctx.restore();
+
+            ctx.save(); ctx.translate(cx + 32, cy + 26); ctx.rotate(-0.45 - armWave);
+            ctx.fillStyle = form.body; ctx.beginPath(); ctx.ellipse(0, 8, 9, 18, 0, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = form.tip; ctx.beginPath(); ctx.arc(0, 20, 7.5, 0, Math.PI * 2); ctx.fill();
+            ctx.restore();
+
+            // Каплевидная голова Чао с заострённым хохолком
+            const hg = ctx.createRadialGradient(cx - 14, cy - 38, 8, cx, cy - 24, 52);
+            hg.addColorStop(0, '#ffffff'); hg.addColorStop(0.32, form.body); hg.addColorStop(1, form.belly);
+            ctx.fillStyle = hg;
+            ctx.beginPath();
+            ctx.moveTo(cx - sinY * 14, cy - 82);
+            ctx.bezierCurveTo(cx + 46, cy - 62, cx + 52, cy - 4, cx, cy + 4);
+            ctx.bezierCurveTo(cx - 52, cy - 4, cx - 46, cy - 62, cx - sinY * 14, cy - 82);
+            ctx.fill();
+
+            // Кончик хохолка
+            ctx.fillStyle = form.tip;
+            ctx.beginPath(); ctx.arc(cx - sinY * 12, cy - 75, 9, 0, Math.PI * 2); ctx.fill();
+
+            // Большие глаза Чао и улыбка
+            if (cosY > -0.25) {
+                ctx.globalAlpha = Math.max(0.25, cosY);
+                const ex1 = cx + faceX - 15 * cosY, ex2 = cx + faceX + 15 * cosY, ey = cy - 22;
+                ctx.fillStyle = '#0f172a';
+                ctx.beginPath(); ctx.ellipse(ex1, ey, 7.5 * Math.max(0.4, cosY), 11, 0, 0, Math.PI * 2); ctx.fill();
+                ctx.beginPath(); ctx.ellipse(ex2, ey, 7.5 * Math.max(0.4, cosY), 11, 0, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = '#38bdf8';
+                ctx.beginPath(); ctx.ellipse(ex1, ey + 3, 5 * Math.max(0.4, cosY), 6, 0, 0, Math.PI * 2); ctx.fill();
+                ctx.beginPath(); ctx.ellipse(ex2, ey + 3, 5 * Math.max(0.4, cosY), 6, 0, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = '#ffffff';
+                ctx.beginPath(); ctx.arc(ex1 - 2, ey - 4, 2.8, 0, Math.PI * 2); ctx.fill();
+                ctx.beginPath(); ctx.arc(ex2 - 2, ey - 4, 2.8, 0, Math.PI * 2); ctx.fill();
+                ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 2;
+                ctx.beginPath(); ctx.arc(cx + faceX, ey + 11, 5, 0.15 * Math.PI, 0.85 * Math.PI); ctx.stroke();
+            }
+
+            // Парящий эмо-шарик / нимб над головой
+            ctx.globalAlpha = 1;
+            const orbY = cy - 104 + Math.sin(t * 0.006) * 5;
+            ctx.shadowColor = form.halo; ctx.shadowBlur = 16;
+            if (form.id === 'hero' || form.id === 'gold') {
+                ctx.strokeStyle = form.halo; ctx.lineWidth = 3.2;
+                ctx.beginPath(); ctx.ellipse(cx, orbY, 24, 7.5, 0, 0, Math.PI * 2); ctx.stroke();
+            } else {
+                ctx.fillStyle = form.halo;
+                ctx.beginPath(); ctx.arc(cx, orbY, 9.5, 0, Math.PI * 2); ctx.fill();
+            }
+            ctx.shadowBlur = 0;
+
+            for (let i = sparks.length - 1; i >= 0; i--) {
+                const sp = sparks.at(i); sp.x += sp.vx; sp.y += sp.vy; sp.life -= 0.03;
+                if (sp.life <= 0) { sparks.splice(i, 1); continue; }
+                ctx.fillStyle = 'rgba(253,224,71,' + sp.life.toFixed(2) + ')';
+                ctx.beginPath(); ctx.arc(sp.x, sp.y, 3.5, 0, Math.PI * 2); ctx.fill();
+            }
+        }
+        chaoRaf = requestAnimationFrame(frame);
+    }
+
+    function renderChaoTab(body, refreshHeader) {
+        body.innerHTML = '';
+        const st = loadState(), form = determineChaoForm(liveStats), lv = getChaoLevel(liveStats, st);
+        const fullness = Math.min(100, 30 + (st.chao.feed || 0) * 14 + Math.floor((liveStats.totalSeconds || 0) / 600) * 5);
+        const xpPct = ((Math.floor((liveStats.totalSeconds || 0) / 180) + (st.chao.xp || 0) + (liveStats.emeraldsCur || 0) * 12) % 25) * 4;
+
+        const grid = mk('div', 'ah-chao-grid', '');
+        const stage = mk('div', 'ah-stage', '');
+        const info = mk('div', '', 'display:flex;flex-direction:column;gap:10px;');
+
+        const c1 = mk('div', 'ah-card', '');
+        c1.append(
+            mk('div', '', 'font-size:15px;font-weight:900;color:#fde047;', 'Кристальный Чао • Ур. ' + lv),
+            mk('div', '', 'font-size:12px;color:#93c5fd;font-weight:700;', 'Форма эволюции: ' + form.name),
+            mk('div', '', 'font-size:11.5px;opacity:0.78;line-height:1.45;', 'Крутите спутника мышью и кликайте, чтобы погладить. Форма эволюционирует автоматически от ваших Изумрудов, достижений и игрового времени!')
+        );
+
+        const mkMeter = (lbl, pct) => {
+            const w = mk('div', '', 'display:flex;flex-direction:column;gap:4px;font-size:11.5px;');
+            const b = mk('div', 'ah-bar', ''); b.appendChild(mk('i', '', 'width:' + pct + '%;', ''));
+            w.append(mk('span', '', '', lbl + ': ' + pct + '%'), b);
+            return w;
+        };
+        const c2 = mk('div', 'ah-card', '');
+        c2.append(mkMeter('Сытость и настроение', fullness), mkMeter('Опыт до следующего уровня', xpPct));
+
+        const actRow = mk('div', '', 'display:flex;gap:8px;flex-wrap:wrap;margin-top:4px;');
+        const feedB = mk('button', 'btn-small btn-accent', 'padding:8px 14px;font-weight:800;', 'Покормить (-10 Колец)');
+        feedB.type = 'button';
+        feedB.onclick = () => {
+            const cur = loadState();
+            if ((cur.rings || 0) < 10) { if (typeof showToast === 'function') showToast('Недостаточно Колец лаунчера!', true); return; }
+            cur.rings -= 10; cur.chao.feed = (cur.chao.feed || 0) + 1; cur.chao.xp = (cur.chao.xp || 0) + 10;
+            saveState(cur); if (typeof playSfx === 'function') playSfx('launch');
+            refreshHeader(); renderChaoTab(body, refreshHeader);
+        };
+        const dailyB = mk('button', 'btn-small', 'padding:8px 12px;', 'Бонус дня (+25 Колец)');
+        dailyB.type = 'button';
+        dailyB.onclick = () => {
+            const cur = loadState(), tk = todayKey();
+            if (cur.lastDaily === tk) { if (typeof showToast === 'function') showToast('Бонус дня уже получен сегодня!'); return; }
+            cur.lastDaily = tk; cur.rings = (cur.rings || 0) + 25; saveState(cur);
+            if (typeof playSfx === 'function') playSfx('launch');
+            refreshHeader(); if (typeof showToast === 'function') showToast('Получено +25 Колец лаунчера!');
+        };
+        actRow.append(feedB, dailyB); c2.appendChild(actRow); info.append(c1, c2); grid.append(stage, info); body.appendChild(grid);
+        mountChaoCanvas(stage, form, () => { const cur = loadState(); cur.chao.pet = (cur.chao.pet || 0) + 1; cur.chao.xp = (cur.chao.xp || 0) + 2; saveState(cur); if (typeof playSfx === 'function') playSfx('switch'); });
+    }
+
+    function renderChallengesTab(body, refreshHeader) {
+        body.innerHTML = '';
+        const st = loadState();
+        const top = mk('div', '', 'display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap;');
+        top.appendChild(mk('span', '', 'font-size:12px;font-weight:800;color:#4ade80;', 'Выполнено вызовов: ' + (st.doneCh || new Array()).length + ' / ' + CHAOS_CHALLENGES.length));
+        const rndBtn = mk('button', 'btn-small btn-accent', 'padding:7px 14px;font-weight:800;', 'Случайный вызов (Chaos Roulette)');
+        rndBtn.type = 'button';
+        rndBtn.onclick = async () => {
+            const pool = CHAOS_CHALLENGES.filter(c => !(st.doneCh || new Array()).includes(c.id));
+            const list = pool.length > 0 ? pool : CHAOS_CHALLENGES;
+            const pick = list.at(Math.floor(Math.random() * list.length));
+            if (pick) { await activateChallenge(pick); renderChallengesTab(body, refreshHeader); }
+        };
+        top.appendChild(rndBtn); body.appendChild(top);
+
+        if (st.activeCh) {
+            const ach = CHAOS_CHALLENGES.find(x => x.id === st.activeCh.id);
+            if (ach) {
+                const ban = mk('div', 'ah-card', 'border-color:#fde047;background:rgba(250,204,21,0.1);margin-bottom:10px;flex-direction:row;justify-content:space-between;align-items:center;');
+                const l = mk('div', '', '');
+                l.append(mk('div', '', 'font-size:12px;font-weight:900;color:#fde047;', 'АКТИВНЫЙ ВЫЗОВ: ' + ach.name), mk('div', '', 'font-size:11px;opacity:0.85;', ach.desc + ' • Запустите игру — проверка сработает после выхода!'));
+                const cancelB = mk('button', 'btn-small btn-clear', '', 'Отменить');
+                cancelB.type = 'button'; cancelB.onclick = () => { const s2 = loadState(); s2.activeCh = null; saveState(s2); renderChallengesTab(body, refreshHeader); };
+                ban.append(l, cancelB); body.appendChild(ban);
+            }
+        }
+
+        const list = mk('div', '', 'display:flex;flex-direction:column;gap:7px;');
+        CHAOS_CHALLENGES.forEach(ch => {
+            const done = (st.doneCh || new Array()).includes(ch.id), isAct = st.activeCh && st.activeCh.id === ch.id;
+            const row = mk('div', 'mod-item', 'padding:9px 12px;border-left:3px solid ' + (done ? '#4ade80' : (isAct ? '#fde047' : '#3b82f6')) + ';');
+            const inf = mk('div', 'mod-info', 'flex:1;');
+            inf.append(mk('div', 'mod-title', 'font-size:12.5px;color:' + (done ? '#4ade80' : '#fff') + ';', (done ? '[OK] ' : '') + ch.name + ' (+' + ch.reward + ' Колец)'), mk('div', 'mod-author', '', ch.desc));
+            const btn = mk('button', 'btn-small ' + (done ? '' : 'btn-accent'), '', done ? 'Выполнено' : (isAct ? 'Активен' : 'Принять'));
+            btn.type = 'button'; btn.disabled = done;
+            btn.onclick = async () => { await activateChallenge(ch); renderChallengesTab(body, refreshHeader); };
+            row.append(inf, btn); list.appendChild(row);
+        });
+        body.appendChild(list);
+    }
+
+    function renderEmblemsTab(body) {
+        body.innerHTML = ''; evaluateEmblems();
+        const st = loadState(), unlocked = new Set(st.emblems || new Array());
+        body.appendChild(mk('div', '', 'font-size:12.5px;font-weight:800;color:#fde047;margin-bottom:8px;', 'Стена Эмблем SA2 (' + unlocked.size + ' / ' + EMBLEM_DEFS.length + ')'));
+
+        const grid = mk('div', 'ah-emb-grid', '');
+        EMBLEM_DEFS.forEach(em => {
+            const isOn = unlocked.has(em.id);
+            const cell = mk('div', 'ah-emb ' + (isOn ? 'on' : 'off'), '');
+            const badge = mk('div', '', 'width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:900;border:2px solid ' + (isOn ? '#fde047' : '#64748b') + ';color:' + (isOn ? '#fde047' : '#94a3b8') + ';background:rgba(0,0,0,0.35);', '#' + em.code);
+            cell.append(badge, mk('div', '', 'font-weight:800;color:' + (isOn ? '#fde047' : '#cbd5e1') + ';', em.name), mk('div', '', 'font-size:9.5px;opacity:0.75;line-height:1.25;', em.cond));
+            grid.appendChild(cell);
+        });
+        body.appendChild(grid);
+
+        body.appendChild(mk('div', '', 'font-size:12.5px;font-weight:800;color:#34d399;margin-bottom:6px;', 'Годовая карта активности (52 недели × 7 дней)'));
+        const hWrap = mk('div', 'ah-heat-wrap', ''), hGrid = mk('div', 'ah-heat-grid', ''), hm = st.heatmap || {}, now = new Date();
+        for (let d = 363; d >= 0; d--) {
+            const dt = new Date(now.getTime() - d * 86400000);
+            const key = dt.getFullYear() + '-' + String(dt.getMonth() + 1).padStart(2, '0') + '-' + String(dt.getDate()).padStart(2, '0');
+            const rec = hm[key] || { mins: 0, launches: 0 }, score = rec.mins + rec.launches * 4;
+            const lvl = score >= 45 ? 'ah-c4' : (score >= 20 ? 'ah-c3' : (score >= 8 ? 'ah-c2' : (score > 0 ? 'ah-c1' : '')));
+            const sq = mk('div', 'ah-cell ' + lvl, ''); sq.title = key + ': ' + rec.mins + ' мин., запусков: ' + rec.launches;
+            hGrid.appendChild(sq);
+        }
+        hWrap.appendChild(hGrid); body.appendChild(hWrap);
+    }
+
+    function stopQuizAudio() { if (quizTimer) { clearTimeout(quizTimer); quizTimer = 0; } if (quizAudio) { quizAudio.pause(); quizAudio = null; } }
+
+    function renderArcadeTab(body, refreshHeader) {
+        body.innerHTML = ''; stopQuizAudio();
+        const grid = mk('div', '', 'display:grid;grid-template-columns:1fr 1fr;gap:14px;');
+        const slotCard = mk('div', 'ah-card', '');
+        slotCard.append(
+            mk('div', '', 'font-size:14px;font-weight:900;color:#fde047;', 'Casino Night Slots'),
+            mk('div', '', 'font-size:11px;opacity:0.78;', 'Ставка: 15 Колец. Выбивайте комбинации, Джекпот 777 и редкие титулы профиля!')
+        );
+
+        const SYMS = Array.of(
+            { id: 'SONIC', col: '#38bdf8', tag: 'SPEED' },
+            { id: 'TAILS', col: '#fb923c', tag: 'FLY' },
+            { id: 'KNUX',  col: '#f87171', tag: 'POWER' },
+            { id: 'RING',  col: '#facc15', tag: 'BONUS' },
+            { id: '777',   col: '#fde047', tag: 'JACKPOT' }
+        );
+
+        const reelsBox = mk('div', 'ah-slots', '');
+        const rEls = Array.of(mk('div', 'ah-reel', '', ''), mk('div', 'ah-reel', '', ''), mk('div', 'ah-reel', '', ''));
+        function paintReel(el, sym) {
+            el.innerHTML = '';
+            const inB = mk('div', 'ah-reel-inner', '');
+            inB.append(
+                mk('span', '', 'font-size:18px;font-weight:900;letter-spacing:1px;color:' + sym.col + ';text-shadow:0 0 10px ' + sym.col + ';', sym.id),
+                mk('span', '', 'font-size:9px;font-weight:800;opacity:0.65;letter-spacing:1.2px;', sym.tag)
+            );
+            el.appendChild(inB);
+        }
+        rEls.forEach(r => { paintReel(r, SYMS.at(4)); reelsBox.appendChild(r); });
+
+        const resLbl = mk('div', '', 'font-size:12px;font-weight:700;text-align:center;min-height:20px;color:#93c5fd;', 'Нажмите «Крутить», чтобы испытать удачу');
+        const spinBtn = mk('button', 'btn-small btn-accent', 'padding:9px;font-weight:900;', 'Крутить барабан (-15 Колец)');
+        spinBtn.type = 'button';
+
+        let spinning = false;
+        spinBtn.onclick = () => {
+            if (spinning) return;
+            const st = loadState();
+            if ((st.rings || 0) < 15) { if (typeof showToast === 'function') showToast('Недостаточно Колец (нужно 15)!', true); return; }
+            st.rings -= 15; st.spins = (st.spins || 0) + 1; saveState(st); refreshHeader();
+            spinning = true; spinBtn.disabled = true;
+            if (typeof playSfx === 'function') playSfx('switch');
+
+            const chosen = Array.of(
+                SYMS.at(Math.floor(Math.random() * SYMS.length)),
+                SYMS.at(Math.floor(Math.random() * SYMS.length)),
+                SYMS.at(Math.floor(Math.random() * SYMS.length))
+            );
+            rEls.forEach(el => { el.classList.remove('stopped'); el.classList.add('spinning'); });
+
+            const stopTimers = Array.of(650, 1050, 1450);
+            stopTimers.forEach((ms, idx) => {
+                setTimeout(() => {
+                    const el = rEls.at(idx);
+                    el.classList.remove('spinning');
+                    paintReel(el, chosen.at(idx));
+                    void el.offsetWidth;
+                    el.classList.add('stopped');
+                    if (typeof playSfx === 'function') playSfx('switch');
+                }, ms);
+            });
+
+            setTimeout(() => {
+                spinning = false; spinBtn.disabled = false;
+                const a = chosen.at(0).id, b = chosen.at(1).id, c = chosen.at(2).id;
+                const cur = loadState();
+                if (a === '777' && b === '777' && c === '777') {
+                    cur.rings += 300; cur.slotJackpot = true; resLbl.textContent = 'ДЖЕКПОТ 777! +300 Колец!';
+                } else if (a === b && b === c) {
+                    cur.rings += 120; resLbl.textContent = 'Тройное совпадение! +120 Колец!';
+                } else if (a === b || b === c || a === c) {
+                    cur.rings += 35; resLbl.textContent = 'Пара! +35 Колец!';
+                } else { resLbl.textContent = 'В этот раз не повезло — попробуй ещё!'; }
+
+                if ((a === b || b === c || a === c) && Math.random() < 0.45) {
+                    const lockedT = RARE_TITLES.filter(t => !(cur.titles || new Array()).includes(t));
+                    if (lockedT.length > 0) {
+                        const wonT = lockedT.at(Math.floor(Math.random() * lockedT.length));
+                        cur.titles.push(wonT); cur.activeTitle = wonT;
+                        resLbl.textContent += ' Новый титул: ' + wonT;
+                    }
+                }
+                saveState(cur); refreshHeader(); evaluateEmblems(); updateTitlePicker();
+                if (typeof playSfx === 'function') playSfx('launch');
+            }, 1520);
+        };
+
+        const titleSel = mk('select', 'custom-select', 'margin-top:4px;');
+        function updateTitlePicker() {
+            const cur = loadState(); titleSel.innerHTML = '';
+            const o0 = mk('option', '', '', '-- Активный титул профиля --'); o0.value = ''; titleSel.appendChild(o0);
+            (cur.titles || new Array()).forEach(t => { const o = mk('option', '', '', t); o.value = t; titleSel.appendChild(o); });
+            titleSel.value = cur.activeTitle || '';
+        }
+        titleSel.onchange = () => { const cur = loadState(); cur.activeTitle = titleSel.value; saveState(cur); refreshHeader(); };
+        updateTitlePicker();
+        slotCard.append(reelsBox, resLbl, spinBtn, titleSel);
+        grid.appendChild(slotCard);
+        renderQuizCard(grid, refreshHeader);
+        body.appendChild(grid);
+    }
+
+    function renderQuizCard(grid, refreshHeader) {
+        const card = mk('div', 'ah-card', '');
+        let streak = 0;
+        const st = loadState();
+        const hdr = mk('div', '', 'display:flex;align-items:center;gap:6px;font-size:14px;font-weight:900;color:#67e8f9;', '');
+        hdr.innerHTML = SVG_NOTE + '<span>Викторина «Угадай трек»</span>';
+        const info = mk('div', '', 'font-size:11px;opacity:0.8;', 'Слушайте 5-секундный фрагмент из Jukebox и угадывайте название (+15 Колец за ответ).');
+        const stLbl = mk('div', '', 'font-size:11.5px;font-weight:800;color:#4ade80;', 'Серия: 0 • Рекорд: ' + (st.quizBest || 0));
+        const playBtn = mk('button', 'btn-small btn-accent', 'padding:8px;font-weight:800;', 'Начать раунд (5 сек.)');
+        playBtn.type = 'button';
+        const optsBox = mk('div', 'ah-quiz-opts', '');
+
+        playBtn.onclick = async () => {
+            stopQuizAudio(); optsBox.innerHTML = '';
+            let pool = new Array();
+            try { const jl = await (await fetch('/api/jukebox/list')).json(); pool = (jl.tracks || new Array()).slice(); } catch (_) {}
+            if (typeof soundsMap === 'object' && soundsMap) {
+                Object.keys(soundsMap).forEach(k => { if (k.endsWith('_bgm') && soundsMap[k]) pool.push({ title: k.replace('_bgm', '').toUpperCase() + ' BGM', url: soundsMap[k] }); });
+            }
+            if (pool.length < 2) {
+                optsBox.appendChild(mk('div', '', 'grid-column:1/-1;font-size:11.5px;opacity:0.7;text-align:center;padding:12px;', 'Добавьте минимум 2 трека в OST Jukebox (sounds/music), чтобы играть!'));
+                return;
+            }
+            const target = pool.at(Math.floor(Math.random() * pool.length));
+            const choices = Array.of(target);
+            const others = pool.filter(x => x.url !== target.url);
+            while (choices.length < Math.min(4, pool.length) && others.length > 0) {
+                choices.push(others.splice(Math.floor(Math.random() * others.length), 1).at(0));
+            }
+            choices.sort(() => Math.random() - 0.5);
+            if (window.currentBgmAudio && !window.currentBgmAudio.paused) window.currentBgmAudio.pause();
+            quizAudio = new Audio(target.url); quizAudio.volume = 0.65;
+            quizAudio.addEventListener('loadedmetadata', () => { if (quizAudio && isFinite(quizAudio.duration) && quizAudio.duration > 10) quizAudio.currentTime = Math.random() * (quizAudio.duration - 7); });
+            quizAudio.play().catch(() => {});
+            quizTimer = setTimeout(() => { if (quizAudio) quizAudio.pause(); }, 5000);
+
+            choices.forEach(ch => {
+                const b = mk('button', 'btn-small', 'padding:8px;font-size:11px;white-space:normal;', ch.title);
+                b.type = 'button';
+                b.onclick = () => {
+                    stopQuizAudio();
+                    const cur = loadState();
+                    if (ch.url === target.url) {
+                        streak++; cur.rings = (cur.rings || 0) + 15;
+                        if (streak > (cur.quizBest || 0)) cur.quizBest = streak;
+                        saveState(cur); refreshHeader(); evaluateEmblems();
+                        if (typeof playSfx === 'function') playSfx('launch');
+                        if (typeof showToast === 'function') showToast('Верно! +15 Колец (Серия: ' + streak + ')');
+                    } else {
+                        streak = 0; if (typeof playSfx === 'function') playSfx('close_menu');
+                        if (typeof showToast === 'function') showToast('Мимо! Это был: ' + target.title, true);
+                    }
+                    stLbl.textContent = 'Серия: ' + streak + ' • Рекорд: ' + (loadState().quizBest || 0);
+                    optsBox.innerHTML = '';
+                };
+                optsBox.appendChild(b);
+            });
+        };
+        card.append(hdr, info, stLbl, playBtn, optsBox); grid.appendChild(card);
+    }
+
+    window.openArcadeHubModal = async function(initialTab) {
+        injectStyles(); await pullLiveStats();
+        document.getElementById('sgl-arcade-hub-modal')?.remove();
+        if (chaoRaf) cancelAnimationFrame(chaoRaf);
+        stopQuizAudio();
+
+        const bg = mk('div', 'modal-backdrop active', 'z-index:9896;');
+        bg.id = 'sgl-arcade-hub-modal';
+        const closeAll = () => { if (chaoRaf) cancelAnimationFrame(chaoRaf); stopQuizAudio(); bg.remove(); };
+        bg.onclick = e => { if (e.target === bg) closeAll(); };
+
+        const box = mk('div', 'modal-box ah-modal', '');
+        const top = mk('div', 'ah-top', '');
+        const tLeft = mk('div', '', 'display:flex;align-items:center;gap:8px;flex-wrap:wrap;');
+        const mTitle = mk('div', 'modal-title', 'margin:0;display:flex;align-items:center;gap:8px;', '');
+        mTitle.innerHTML = SVG_PAD + '<span>Аркада и Экстра</span>';
+        const titleBadge = mk('span', 'ah-title-pill', '', '');
+        const ringsBadge = mk('span', 'ah-rings', '', '');
+        tLeft.append(mTitle, titleBadge);
+        top.append(tLeft, ringsBadge);
+
+        function refreshHeader() {
+            const st = loadState();
+            ringsBadge.innerHTML = SVG_RING + '<span>Колец лаунчера: ' + (st.rings || 0) + '</span>';
+            titleBadge.textContent = st.activeTitle || '';
+            titleBadge.style.display = st.activeTitle ? 'inline-block' : 'none';
+        }
+        refreshHeader();
+
+        const tabsBar = mk('div', 'tabs-bar', 'margin-bottom:0;');
+        const body = mk('div', 'ah-body', '');
+        const TABS = Array.of(
+            { id: 'chao', lbl: 'Кристальный Чао', fn: () => renderChaoTab(body, refreshHeader) },
+            { id: 'challenges', lbl: 'Челленджи Хаоса', fn: () => renderChallengesTab(body, refreshHeader) },
+            { id: 'emblems', lbl: 'Эмблемы и Активность', fn: () => renderEmblemsTab(body) },
+            { id: 'arcade', lbl: 'Мини-аркада', fn: () => renderArcadeTab(body, refreshHeader) }
+        );
+        const tabBtns = new Array();
+        function switchTab(id) {
+            if (chaoRaf) cancelAnimationFrame(chaoRaf);
+            stopQuizAudio();
+            TABS.forEach((t, idx) => { const act = t.id === id; tabBtns.at(idx).classList.toggle('active', act); if (act) t.fn(); });
+        }
+        TABS.forEach(t => {
+            const b = mk('button', 'tab-btn', '', t.lbl); b.type = 'button';
+            b.onclick = () => { if (typeof playSfx === 'function') playSfx('switch'); switchTab(t.id); };
+            tabBtns.push(b); tabsBar.appendChild(b);
+        });
+
+        const closeB = mk('button', 'close-modal-btn', 'margin-top:0;', 'Закрыть');
+        closeB.type = 'button'; closeB.onclick = closeAll;
+        box.append(top, tabsBar, body, closeB); bg.appendChild(box); document.body.appendChild(bg);
+        switchTab(initialTab || 'chao');
+        if (typeof playSfx === 'function') playSfx('open_menu');
+    };
+
+    function injectEntryPoints() {
+        const obs = new MutationObserver(() => {
+            const pModal = document.getElementById('profile-stats-modal');
+            const pBody = document.getElementById('profile-stats-body');
+            if (pModal && pModal.classList.contains('active') && pBody && !document.getElementById('sgl-open-arcade-banner')) {
+                const st = loadState();
+                const ban = mk('div', '', 'display:flex;justify-content:space-between;align-items:center;gap:10px;padding:9px 14px;border-radius:10px;background:linear-gradient(90deg,rgba(56,189,248,0.16),rgba(250,204,21,0.12));border:1px solid rgba(56,189,248,0.4);margin-bottom:8px;');
+                ban.id = 'sgl-open-arcade-banner';
+                const btn = mk('button', 'btn-small btn-accent', 'font-weight:900;padding:6px 14px;display:inline-flex;align-items:center;gap:6px;', '');
+                btn.type = 'button'; btn.innerHTML = SVG_PAD + '<span>Аркада и Экстра</span>'; btn.onclick = () => window.openArcadeHubModal();
+                const lblTxt = 'Кристальный Чао, Челленджи и Эмблемы' + (st.activeTitle ? (' • ' + st.activeTitle) : '');
+                ban.append(mk('span', '', 'font-size:12px;font-weight:800;color:#67e8f9;', lblTxt), btn);
+                pBody.prepend(ban);
+            }
+            document.querySelectorAll('button').forEach(b => {
+                const txt = (b.textContent || '').trim();
+                if ((txt.includes('Гайды и читы') || txt.includes('Guides & Cheats')) && b.parentElement && !b.parentElement.querySelector('#sgl-dd-arcade-hub')) {
+                    const nb = mk('button', b.className, 'display:inline-flex;align-items:center;justify-content:flex-start;gap:8px;text-align:left;', '');
+                    nb.type = 'button'; nb.id = 'sgl-dd-arcade-hub'; nb.innerHTML = SVG_PAD + '<span>Аркада и Экстра</span>';
+                    nb.onclick = () => window.openArcadeHubModal(); b.after(nb);
+                }
+            });
+        });
+        obs.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: Array.of('class') });
+    }
+
+    const _boot = () => { syncStateFromDisk(); injectStyles(); hookSessionTracking(); injectEntryPoints(); setTimeout(pullLiveStats, 1200); };
+    if (document.readyState === 'loading') window.addEventListener('DOMContentLoaded', _boot); else _boot();
+})();

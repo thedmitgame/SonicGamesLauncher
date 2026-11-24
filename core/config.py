@@ -98,6 +98,7 @@ DEFAULT_DESIGN = {
     "objSpeed": 5,
     "objOpacity": 35,
     "enableParallax": True,
+    "superSaveFx": True,
     "enableEq": True,
     "liteMode": False,
     "lightUi": False,

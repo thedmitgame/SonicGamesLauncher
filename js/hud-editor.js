@@ -15,13 +15,13 @@
     function ensureSelectOptions() {
         const sel = document.getElementById('hud-target-select');
         if (!sel) return;
-        const extras = [
+        const extras = Array.of(
             { v: 'btn-progress', t: 'Кнопка: Прогресс' },
             { v: 'btn-help', t: 'Кнопка: Обучение (?)' },
-            { v: 'm5bar', t: 'Панель: Рулетка и папки' },
-            { v: 'm4btn', t: 'Кнопка: Атмосфера' },
+            { v: 'btn-minidock', t: 'Кнопка: Мини-док' },
+            { v: 'm5bar', t: 'Верхняя панель (Хабы)' },
             { v: 'lang', t: 'Переключатель языка' }
-        ];
+        );
         const existing = Array.from(sel.options).map(o => o.value);
         extras.forEach(item => {
             if (!existing.includes(item.v)) {

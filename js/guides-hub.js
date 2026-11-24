@@ -311,5 +311,5 @@
         bar.appendChild(b);
     }
 
-    window.addEventListener('DOMContentLoaded', () => setTimeout(injectTopGuidesBtn, 280));
+    /* Кнопка «Гайды и читы» перенесена в хаб «Инструменты» (js/topbar-hubs.js) */
 })();

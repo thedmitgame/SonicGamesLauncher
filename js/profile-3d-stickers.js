@@ -411,16 +411,7 @@
     };
 
     function ensureCustomizerSlotRow() {
-        const pane = document.getElementById('tab-appearance');
-        if (!pane || document.getElementById('sgl-open-uislots3d-btn')) return;
-        const row = mk('div', 'char-card-cfg', 'flex-direction:row;justify-content:space-between;align-items:center;padding:9px 12px;margin-bottom:10px;border-color:rgba(74,222,128,0.45);');
-        row.id = 'sgl-open-uislots3d-btn';
-        const btn = mk('button', 'btn-small btn-accent', '', 'Настроить 3D-слоты...');
-        btn.type = 'button';
-        btn.onclick = () => window.openUiModelSlotsModal('profile');
-        row.append(mk('span', '', 'font-size:12px;font-weight:800;color:#4ADE80;', '3D-модели и эволюция в элементах интерфейса'), btn);
-        const anchor = document.getElementById('sgl-open-b3d-btn') || document.getElementById('inp-cardStyle')?.closest('.custom-group');
-        if (anchor) anchor.after(row); else pane.appendChild(row);
+        /* Кнопка 3D-слотов перенесена во вкладку «Студия и HUD» */
     }
 
     const _boot = () => {

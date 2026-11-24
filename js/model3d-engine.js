@@ -62,7 +62,7 @@
     }
 
     function createBuiltinEmeraldMesh() {
-        const sides = 8, rTop = 0.58, rMid = 0.96, yTop = 0.42, yMid = 0.12, yBot = -0.72, out = new Array();
+        const sides = 12, rTop = 0.54, rMid = 0.98, yTop = 0.48, yMid = 0.14, yBot = -0.78, out = new Array();
         const tri = (a, b, c) => { out.push(a.at(0), a.at(1), a.at(2), b.at(0), b.at(1), b.at(2), c.at(0), c.at(1), c.at(2)); };
         for (let i = 0; i < sides; i++) {
             const a0 = (i / sides) * Math.PI * 2, a1 = ((i + 1) / sides) * Math.PI * 2;
@@ -137,7 +137,7 @@
     }
 
     function createBuiltinStarMesh() {
-        const pts = 5, rOut = 0.92, rIn = 0.40, zMid = 0.28, out = new Array();
+        const pts = 5, rOut = 0.96, rIn = 0.42, zMid = 0.36, out = new Array();
         const tri = (a, b, c) => { out.push(a.at(0),a.at(1),a.at(2), b.at(0),b.at(1),b.at(2), c.at(0),c.at(1),c.at(2)); };
         for (let i = 0; i < pts * 2; i++) {
             const a0 = (i / (pts * 2)) * Math.PI * 2 - Math.PI / 2;
@@ -280,12 +280,15 @@
         plinth.addBox(0, -0.46, 0, 0.40, 0.12, 0.40);
         const gem = mkP(Float32Array.of(0.15, 0.94, 0.52));
         gem.addBox(0, 0.32, 0.44, 0.10, 0.10, 0.05);
-        return normalizeParts(Array.of(gold.build(), plinth.build(), gem.build()));
+        const base = makeGeoBuilder()(Float32Array.of(0.22, 0.26, 0.36));
+base.addCylY(-0.82, 0.66, 0.56, 0.14, 24);
+base.addCylY(-0.68, 0.48, 0.42, 0.10, 24);
+return normalizeParts(Array.of(gold.build(), plinth.build(), gem.build(), base.build()));
     }
 
 
     function createBuiltinPrismMesh() {
-        const sides = 6, rMid = 0.72, yTop = 0.88, yBot = -0.88, out = new Array();
+        const sides = 10, rMid = 0.76, yTop = 0.94, yBot = -0.94, out = new Array();
         const tri = (a, b, c) => { out.push(a.at(0),a.at(1),a.at(2), b.at(0),b.at(1),b.at(2), c.at(0),c.at(1),c.at(2)); };
         for (let i = 0; i < sides; i++) {
             const a0 = (i / sides) * Math.PI * 2, a1 = ((i + 1) / sides) * Math.PI * 2;

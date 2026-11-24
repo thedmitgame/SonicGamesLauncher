@@ -1,3 +1,6 @@
+from core import tweaks as core_tweaks
+from core import system_extras
+from core import mod_tools_ext
 import re
 from core.backups import list_save_backups, create_save_backup, create_auto_save_backup, restore_save_backup, delete_save_backup, BACKUPS_DIR
 import webbrowser
@@ -35,6 +38,7 @@ except ImportError:
 window_instance = None
 tray_icon = None
 active_game_id = None
+last_session_info = None
 current_hotkey = None
 
 
@@ -135,8 +139,8 @@ def start_tray_icon(icon_url=""):
     )
     tray_icon = pystray.Icon("SonicLauncher", build_tray_image(icon_url), "Sonic Launcher", menu)
     threading.Thread(target=tray_icon.run, daemon=True).start()
-def monitor_game_session(game_id, proc, minimize, to_tray):
-    global active_game_id
+def monitor_game_session(game_id, proc, minimize, to_tray, restore_mods=None, is_safe=False, sb_snap=None):
+    global active_game_id, last_session_info
     active_game_id = game_id
     start_ts = time.time()
     try:
@@ -186,6 +190,58 @@ def monitor_game_session(game_id, proc, minimize, to_tray):
                 window_instance.restore()
         except Exception:
             pass
+
+
+OST_AUDIO_EXTS = (".ogg", ".mp3", ".wav", ".flac")
+OST_MIN_BYTES = 120 * 1024
+
+def is_allowed_ext_audio(file_path, cfg):
+    if not file_path or not os.path.isfile(file_path):
+        return False
+    if os.path.splitext(file_path)[1].lower() not in OST_AUDIO_EXTS:
+        return False
+    abs_f = os.path.normcase(os.path.abspath(file_path))
+    for p in cfg.get("paths", {}).values():
+        if p and os.path.exists(p):
+            gdir = os.path.normcase(os.path.abspath(os.path.dirname(p)))
+            if abs_f.startswith(gdir + os.sep):
+                return True
+    return False
+
+
+def scan_installed_games_ost(cfg):
+    tracks, seen = [], set()
+    skip_dirs = {"screenshots", "logs", "cache", "__pycache__", "saves", "save"}
+    for g in cfg.get("gamesOrder", []):
+        gid, gname = g.get("id", ""), g.get("name", "")
+        exe_p = cfg.get("paths", {}).get(gid, "")
+        if not exe_p or not os.path.exists(exe_p):
+            continue
+        gdir = os.path.dirname(os.path.abspath(exe_p))
+        base_d = gdir.rstrip(os.sep).count(os.sep)
+        for root, dirs, files in os.walk(gdir):
+            dirs[:] = [d for d in dirs if d.lower() not in skip_dirs]
+            if root.count(os.sep) - base_d > 6:
+                continue
+            for fn in sorted(files):
+                if os.path.splitext(fn)[1].lower() not in OST_AUDIO_EXTS:
+                    continue
+                fp = os.path.join(root, fn)
+                norm = os.path.normcase(fp)
+                if norm in seen:
+                    continue
+                try:
+                    if os.path.getsize(fp) < OST_MIN_BYTES:
+                        continue
+                except Exception:
+                    continue
+                seen.add(norm)
+                title = os.path.splitext(fn)[0].replace("_", " ").strip()
+                tracks.append({
+                    "title": title, "gameId": gid, "gameName": gname or gid,
+                    "url": "/api/jukebox/stream_ext?path=" + urllib.parse.quote(fp)
+                })
+    return tracks
 
 def get_query_param(query, name):
     vals = query.get(name)
@@ -256,6 +312,139 @@ class LauncherHandler(SimpleHTTPRequestHandler):
         content_length = int(self.headers.get('Content-Length', 0))
         body = self.rfile.read(content_length).decode('utf-8') if content_length else "{}"
         payload = json.loads(body)
+
+        if parsed.path == '/api/mods/share_export':
+            gid = payload.get('gameId', '')
+            cfg = load_config()
+            mods = get_game_mods(gid, cfg).get('mods', [])
+            self.send_json({'ok': True, 'code': mod_tools_ext.encode_share_code(gid, mods)})
+            return
+
+        if parsed.path == '/api/mods/share_import':
+            try:
+                dec = mod_tools_ext.decode_share_code(payload.get('code', ''))
+                gid = payload.get('gameId') or dec['gameId']
+                cfg = load_config()
+                cur = get_game_mods(gid, cfg).get('mods', [])
+                by_key = {(m.get('name') or m.get('folder') or '').lower(): m for m in cur}
+                matched, missing, used = [], [], set()
+                for req in dec['mods']:
+                    m = by_key.get(req.lower())
+                    if m:
+                        nm = dict(m); nm['enabled'] = True
+                        matched.append(nm); used.add(req.lower())
+                    else:
+                        missing.append(req)
+                for m in cur:
+                    k = (m.get('name') or m.get('folder') or '').lower()
+                    if k not in used:
+                        nm = dict(m); nm['enabled'] = False; matched.append(nm)
+                save_mods_state(gid, matched, cfg)
+                self.send_json({'ok': True, 'gameId': gid, 'matched': len(used), 'missing': missing})
+            except Exception as ex:
+                self.send_json({'ok': False, 'error': str(ex)})
+            return
+
+        if parsed.path == '/api/mods/sandbox_toggle':
+            cfg = load_config()
+            gid = payload.get('gameId', '')
+            cfg.setdefault('modSandbox', {})[gid] = bool(payload.get('enabled'))
+            save_config(cfg)
+            self.send_json({'ok': True, 'enabled': cfg['modSandbox'][gid]})
+            return
+
+        if parsed.path == '/api/rompatch/apply':
+            try:
+                out_p = mod_tools_ext.patch_rom_file(payload.get('rom', ''), payload.get('patch', ''), BASE_DIR)
+                self.send_json({'ok': True, 'outPath': out_p})
+            except Exception as ex:
+                self.send_json({'ok': False, 'error': str(ex)})
+            return
+
+        if parsed.path == '/api/rompatch/add_card':
+            cfg = load_config()
+            rp = payload.get('romPath', '')
+            title = payload.get('name') or os.path.splitext(os.path.basename(rp))[0]
+            gid = 'hack_' + str(int(time.time()))
+            cfg.setdefault('paths', {})[gid] = rp
+            cfg.setdefault('gamesOrder', []).append({'id': gid, 'name': title, 'year': 'HACK', 'era': 'ROMHACK', 'color': '#38bdf8'})
+            save_config(cfg)
+            self.send_json({'ok': True, 'gameId': gid})
+            return
+
+        if parsed.path == '/api/mods/portable_export':
+            try:
+                gid = payload.get('gameId', '')
+                cfg = load_config()
+                mods = get_game_mods(gid, cfg).get('mods', [])
+                out_dir = payload.get('outDir') or os.path.join(BASE_DIR, 'exports')
+                zp = mod_tools_ext.export_portable_pack(gid, cfg, mods, out_dir)
+                self.send_json({'ok': True, 'zipPath': zp})
+            except Exception as ex:
+                self.send_json({'ok': False, 'error': str(ex)})
+            return
+
+        if parsed.path == '/api/themes/save_preview':
+            import base64
+            tdir = os.path.join(BASE_DIR, 'themes')
+            os.makedirs(tdir, exist_ok=True)
+            name = re.sub(r'[^a-zA-Z0-9_\-а-яА-ЯёЁ ]+', '', str(payload.get('name', 'custom'))).strip() or 'custom'
+            data_url = str(payload.get('pngDataUrl', ''))
+            tags = payload.get('tags', [])
+            if ',' in data_url:
+                raw_b64 = data_url.split(',', 1)[1]
+                with open(os.path.join(tdir, name + '.preview.png'), 'wb') as pf:
+                    pf.write(base64.b64decode(raw_b64))
+            meta_p = os.path.join(tdir, 'previews_meta.json')
+            meta = {}
+            if os.path.isfile(meta_p):
+                try:
+                    meta = json.loads(Path(meta_p).read_text(encoding='utf-8'))
+                except Exception:
+                    meta = {}
+            meta[name] = {'tags': tags, 'img': data_url}
+            Path(meta_p).write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding='utf-8')
+            self.send_json({'ok': True, 'name': name})
+            return
+
+        if parsed.path == '/api/shots/meta':
+            res = system_extras.save_shot_meta(
+                BASE_DIR, payload.get('filename', ''), payload.get('gameId', ''),
+                payload.get('gameName', ''), payload.get('zone', ''), payload.get('character', '')
+            )
+            self.send_json({'ok': True, 'meta': res})
+            return
+
+        if parsed.path == '/api/replay/toggle':
+            en = bool(payload.get('enabled'))
+            system_extras.REPLAY.configure(en, BASE_DIR)
+            cfg = load_config(); cfg['instantReplay'] = en; save_config(cfg)
+            self.send_json({'ok': True, 'enabled': en})
+            return
+
+        if parsed.path == '/api/replay/save':
+            p = system_extras.REPLAY.save_gif()
+            self.send_json({'ok': bool(p), 'path': p})
+            return
+
+        if parsed.path == '/api/cleaner/run':
+            res = system_extras.run_safe_cleanup(BASE_DIR, bool(payload.get('backups', True)), bool(payload.get('cache', True)))
+            self.send_json(res)
+            return
+
+        if parsed.path == '/api/tweaks':
+            gid = payload.get('gameId') or payload.get('id', '')
+            cfg = load_config()
+            fn = getattr(core_tweaks, 'save_game_tweaks', None) or getattr(core_tweaks, 'save_tweaks', None)
+            self.send_json(fn(gid, payload, cfg) if fn else {'ok': True})
+            return
+
+        if parsed.path == '/api/arcade/state':
+            ap = os.path.join(BASE_DIR, 'arcade_progress.json')
+            with open(ap, 'w', encoding='utf-8') as af:
+                json.dump(payload, af, ensure_ascii=False, indent=2)
+            self.send_json({'ok': True})
+            return
 
         if parsed.path == '/api/screenshots/delete':
             gid = sanitize_filename(payload.get("gameId", ""))
@@ -434,6 +623,10 @@ class LauncherHandler(SimpleHTTPRequestHandler):
                 self.send_json({'ok': True})
             else:
                 self.send_json({'ok': False, 'error': 'Файл не найден'})
+            return
+
+        if parsed.path == '/api/jukebox/scan_game_ost':
+            self.send_json({'ok': True, 'tracks': scan_installed_games_ost(load_config())})
             return
 
         if parsed.path == '/api/jukebox/add_track':
@@ -1118,9 +1311,63 @@ class LauncherHandler(SimpleHTTPRequestHandler):
             return
         query = urllib.parse.parse_qs(parsed.query)
 
+        if parsed.path == '/api/arcade/state':
+            ap = os.path.join(BASE_DIR, 'arcade_progress.json')
+            data = {}
+            if os.path.isfile(ap):
+                try:
+                    with open(ap, 'r', encoding='utf-8') as af:
+                        data = json.load(af)
+                except Exception:
+                    data = {}
+            self.send_json(data)
+            return
+
+        if parsed.path == '/api/themes/previews':
+            meta_p = os.path.join(BASE_DIR, 'themes', 'previews_meta.json')
+            items = {}
+            if os.path.isfile(meta_p):
+                try:
+                    items = json.loads(Path(meta_p).read_text(encoding='utf-8'))
+                except Exception:
+                    items = {}
+            self.send_json({'ok': True, 'items': items})
+            return
+
+        if parsed.path == '/api/shots/meta':
+            self.send_json({'ok': True, 'items': system_extras.load_shots_meta(BASE_DIR)})
+            return
+
+        if parsed.path == '/api/replay/status':
+            self.send_json({'ok': True, 'enabled': system_extras.REPLAY.enabled, 'lastSaved': system_extras.REPLAY.last_saved})
+            return
+
+        if parsed.path == '/api/cleaner/stats':
+            self.send_json({'ok': True, 'stats': system_extras.get_cleaner_stats(BASE_DIR)})
+            return
+
+        if parsed.path == '/api/updater/check':
+            self.send_json(system_extras.check_github_update(load_config()))
+            return
+
+        if parsed.path == '/api/mods/inspect_meta':
+            gid = get_query_param(query, 'id')
+            cfg = load_config()
+            mods = get_game_mods(gid, cfg).get('mods', [])
+            self.send_json({'ok': True, **mod_tools_ext.inspect_game_mods_meta(gid, cfg, mods)})
+            return
+
+        if parsed.path == '/api/tweaks':
+            gid = get_query_param(query, 'id')
+            cfg = load_config()
+            fn = getattr(core_tweaks, 'get_game_tweaks', None) or getattr(core_tweaks, 'get_tweaks', None)
+            self.send_json(fn(gid, cfg) if fn else {'ok': True, 'tweaks': []})
+            return
+
         if parsed.path == '/api/playtime_ping':
             cfg = load_config()
-            self.send_json({'playtime': cfg.get('playtime', {}), 'runningId': active_game_id})
+            system_extras.REPLAY.set_running_game(active_game_id)
+            self.send_json({'playtime': cfg.get('playtime', {}), 'runningId': active_game_id, 'lastSession': last_session_info})
             return
 
         if parsed.path == '/api/backups/list':
@@ -1571,6 +1818,44 @@ class LauncherHandler(SimpleHTTPRequestHandler):
             self.send_error(404)
             return
 
+        elif parsed.path == '/api/jukebox/scan_game_ost':
+            self.send_json({'ok': True, 'tracks': scan_installed_games_ost(load_config())})
+            return
+
+        elif parsed.path == '/api/jukebox/stream_ext':
+            raw_p = get_query_param(query, 'path')
+            cfg = load_config()
+            if is_allowed_ext_audio(raw_p, cfg):
+                ext = os.path.splitext(raw_p)[-1].lower()
+                mm = {'.mp3': 'audio/mpeg', '.ogg': 'audio/ogg', '.wav': 'audio/wav', '.flac': 'audio/flac'}
+                fsize = os.path.getsize(raw_p)
+                rng = self.headers.get('Range', '')
+                if rng.startswith('bytes='):
+                    p1, _, p2 = rng[6:].partition('-')
+                    sb = int(p1) if p1.isdigit() else 0
+                    eb = min(int(p2) if p2.isdigit() else fsize - 1, fsize - 1)
+                    if 0 <= sb <= eb:
+                        self.send_response(206)
+                        self.send_header('Content-Type', mm.get(ext, 'audio/mpeg'))
+                        self.send_header('Accept-Ranges', 'bytes')
+                        self.send_header('Content-Range', f'bytes {sb}-{eb}/{fsize}')
+                        self.send_header('Content-Length', str(eb - sb + 1))
+                        self.end_headers()
+                        with open(raw_p, 'rb') as af:
+                            af.seek(sb)
+                            self.wfile.write(af.read(eb - sb + 1))
+                        return
+                self.send_response(200)
+                self.send_header('Content-Type', mm.get(ext, 'audio/mpeg'))
+                self.send_header('Content-Length', str(fsize))
+                self.send_header('Accept-Ranges', 'bytes')
+                self.end_headers()
+                with open(raw_p, 'rb') as af:
+                    shutil.copyfileobj(af, self.wfile)
+                return
+            self.send_error(404)
+            return
+
         elif parsed.path == '/api/jukebox/list':
             music_dir = os.path.join(SOUNDS_DIR, "music")
             os.makedirs(music_dir, exist_ok=True)
@@ -1593,6 +1878,65 @@ class LauncherHandler(SimpleHTTPRequestHandler):
             os.makedirs(music_dir, exist_ok=True)
             os.startfile(music_dir)
             self.send_json({"ok": True})
+            return
+
+        elif parsed.path == '/api/saves/summary':
+            cfg = load_config()
+            games_order = cfg.get("gamesOrder", DEFAULT_GAMES)
+            paths = cfg.get("paths", {})
+            per_game = {}
+            any_all_emeralds = False
+            completed_ids = []
+
+            for g in games_order:
+                gid = g.get("id", "")
+                if not gid or g.get("emuId"):
+                    continue
+                p = paths.get(gid, "")
+                if not p or not os.path.exists(p):
+                    continue
+                try:
+                    pr = parse_game_progress(gid, cfg)
+                except Exception:
+                    pr = {"supported": False}
+                if not pr.get("supported"):
+                    continue
+
+                em_cur = int(pr.get("emeralds", 0) or 0)
+                em_max = int(pr.get("maxEmeralds", 7) or 0)
+                achs = pr.get("achievements", []) or []
+                ach_max = len(achs)
+                ach_done = sum(1 for a in achs if a.get("done"))
+                ach_pct = round((ach_done / ach_max) * 100) if ach_max > 0 else 0
+                slots_l = pr.get("slots", []) or []
+                cleared_slot = any("CLEAR" in str(s.get("info", "")).upper() for s in slots_l)
+
+                all_em = bool(em_cur >= 7)
+                is_comp = bool(all_em or (ach_max > 0 and (ach_done / ach_max) >= 0.8))
+                if all_em:
+                    any_all_emeralds = True
+                if is_comp:
+                    completed_ids.append(gid)
+
+                per_game[gid] = {
+                    "id": gid,
+                    "name": g.get("name", gid),
+                    "emeralds": em_cur,
+                    "maxEmeralds": em_max,
+                    "achDone": ach_done,
+                    "achMax": ach_max,
+                    "achPct": ach_pct,
+                    "clearedSlot": cleared_slot,
+                    "allEmeralds": all_em,
+                    "completed": is_comp
+                }
+
+            self.send_json({
+                "ok": True,
+                "anyAllEmeralds": any_all_emeralds,
+                "completedIds": completed_ids,
+                "games": per_game
+            })
             return
 
         elif parsed.path == '/api/profile_summary':
@@ -1748,6 +2092,8 @@ class LauncherHandler(SimpleHTTPRequestHandler):
         elif parsed.path == '/api/launch':
             game_id = get_query_param(query, 'id')
             var_id = get_query_param(query, 'var')
+            safe_mode = (get_query_param(query, 'safe') == '1')
+            restore_mods_snap = None
             cfg = load_config()
             target_path = cfg["paths"].get(game_id)
             raw_args = cfg.get("launchArgs", {}).get(game_id, "").strip()
@@ -1787,7 +2133,7 @@ class LauncherHandler(SimpleHTTPRequestHandler):
                 to_tray = design.get("minimizeToTray", False)
                 threading.Thread(
                     target=monitor_game_session,
-                    args=(game_id, proc, minimize, to_tray),
+                    args=(game_id, proc, minimize, to_tray, restore_mods_snap, safe_mode, mod_tools_ext.sandbox_before_launch(game_id, cfg, BASE_DIR, safe_mode)),
                     daemon=True
                 ).start()
             self.send_json({"ok": True})
