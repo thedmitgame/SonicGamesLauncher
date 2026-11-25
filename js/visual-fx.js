@@ -53,6 +53,17 @@
         const op = (currentDesign.screenFxOpacity ?? 45) / 100;
         overlayEl.className = 'fx-' + fx;
         overlayEl.style.opacity = String(op);
+        const shType = currentDesign.shaderType || 'none';
+        const bgCvs = document.getElementById('bg-shader-canvas');
+        window._sglBgShaderPaused = (shType === 'none' || Boolean(currentDesign.liteMode));
+        if (bgCvs) {
+            bgCvs.style.display = window._sglBgShaderPaused ? 'none' : 'block';
+            if (!window._sglBgShaderPaused) {
+                const w = window.innerWidth, h = window.innerHeight;
+                if (bgCvs.width > w) bgCvs.width = w;
+                if (bgCvs.height > h) bgCvs.height = h;
+            }
+        }
     };
 
     function injectCustomizerControls() {
@@ -186,4 +197,30 @@
         setTimeout(window.applyVisualFxPack, 350);
     };
     if (document.readyState === 'loading') window.addEventListener('DOMContentLoaded', _initFx); else _initFx();
+})();
+
+
+/* === GLOBAL FX SPEED & FPS GETTERS === */
+(function() {
+    window.SGL_GET_FX_SPEED = function() {
+        const raw = (typeof currentDesign !== 'undefined' && currentDesign && currentDesign.fxSpeed !== undefined)
+            ? Number(currentDesign.fxSpeed) : 1.0;
+        return Math.max(0.25, Math.min(2.5, isFinite(raw) ? raw : 1.0));
+    };
+    window.SGL_GET_FPS = function(category) {
+        const is3d = (category === '3d' || category === 'museum' || category === 'chao');
+        const defFps = is3d ? 60 : 30;
+        const val = (typeof currentDesign !== 'undefined' && currentDesign)
+            ? Number(is3d ? (currentDesign.fps3d ?? defFps) : (currentDesign.fpsBg ?? defFps))
+            : defFps;
+        return 1000 / ((val === 60) ? 60 : 30);
+    };
+    const oApply = window.applyDesign;
+    if (typeof oApply === 'function') {
+        window.applyDesign = function() {
+            const r = oApply.apply(this, arguments);
+            document.documentElement.style.setProperty('--sgl-fx-speed', String(window.SGL_GET_FX_SPEED()));
+            return r;
+        };
+    }
 })();

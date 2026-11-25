@@ -51,7 +51,7 @@
         if (typeof currentDesign === 'undefined' || !currentDesign) return {};
         if (!currentDesign.uiModelSlots) {
             currentDesign.uiModelSlots = {
-                profile: { enabled: true, side: 'left', kind: '3d', url: 'builtin_emerald', texUrl: '', flipUv: false, material: 'original', progMode: 'auto_aura', tierTexMid: '', tierTexHigh: '', tierTexMax: '', speed: 1.0, zoom: 1.05, size: 290 }
+                profile: { enabled: true, side: 'left', kind: '3d', url: 'builtin_emerald', texUrl: '', flipUv: false, material: 'original', progMode: 'auto_aura', tierTexMid: '', tierTexHigh: '', tierTexMax: '', speed: 1.0, zoom: 0.85, size: 290 }
             };
         }
         return currentDesign.uiModelSlots;
@@ -107,7 +107,7 @@
                 flipUv: Boolean(cfg.flipUv),
                 material: vis.material,
                 speed: cfg.speed ?? 1.0,
-                zoom: cfg.zoom ?? 1.0,
+                zoom: (slotKey === 'profile' ? (cfg.zoom ?? 1.0) * 0.72 : (cfg.zoom ?? 1.0)),
                 interactive: true
             });
         }
@@ -122,7 +122,7 @@
         rightHost.innerHTML = '';
 
         const map = getSlotsMap();
-        if (!map.profile) map.profile = { enabled: true, side: 'left', kind: '3d', url: 'builtin_emerald', material: 'emerald', progMode: 'auto_aura', speed: 1.0, zoom: 1.05, size: 290 };
+        if (!map.profile) map.profile = { enabled: true, side: 'left', kind: '3d', url: 'builtin_emerald', material: 'emerald', progMode: 'auto_aura', speed: 1.0, zoom: 0.85, size: 290 };
         const cfg = map.profile;
 
         if (!cfg.enabled) {

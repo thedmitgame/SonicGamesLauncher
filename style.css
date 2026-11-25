@@ -79,7 +79,7 @@ body.app-exiting {
     opacity: 0;
     transition: opacity 0.8s ease;
     background-size: 300% 300%;
-    animation: gradientBG 12s ease infinite;
+    /* idle-gpu-fix: static gradient */
     pointer-events: none;
 }
 
@@ -256,7 +256,6 @@ h1 {
     height: 44px;
     border-radius: 50%;
     background: rgba(255, 255, 255, 0.12);
-    backdrop-filter: blur(10px);
     border: 1px solid rgba(255, 255, 255, 0.22);
     color: var(--text-color);
     font-size: 18px;
@@ -309,7 +308,6 @@ h1 {
     overflow: hidden;
     position: relative;
     background: rgba(10, 14, 24, 0.65);
-    backdrop-filter: blur(12px);
     border: 2px solid rgba(255, 255, 255, 0.18);
     box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
     display: flex;
@@ -436,7 +434,6 @@ body.style-retro .nav-arrow {
     font-size: 14px;
     line-height: 1.6;
     background: rgba(0, 0, 0, 0.35);
-    backdrop-filter: blur(10px);
     padding: 30px 40px;
     border-radius: 18px;
     border: 1px dashed rgba(255, 255, 255, 0.25);
@@ -458,7 +455,6 @@ footer {
 
 .settings-btn {
     background: rgba(255, 255, 255, 0.12);
-    backdrop-filter: blur(10px);
     border: 1px solid rgba(255, 255, 255, 0.2);
     color: var(--text-color);
     padding: 9px 18px;
@@ -488,7 +484,6 @@ footer {
     height: 38px;
     border-radius: 50%;
     background: rgba(255, 255, 255, 0.12);
-    backdrop-filter: blur(10px);
     border: 1px solid rgba(255, 255, 255, 0.2);
     color: var(--text-color);
     font-size: 15px;
@@ -524,7 +519,6 @@ footer {
     position: fixed;
     inset: 0;
     background: rgba(5, 8, 15, 0.85);
-    backdrop-filter: blur(15px);
     display: none;
     justify-content: center;
     align-items: center;
@@ -1380,7 +1374,6 @@ body.layout-classic header:not([style*="top:"]) {
     width: 90%;
     text-align: center;
     background: rgba(11, 16, 29, 0.72);
-    backdrop-filter: blur(16px);
     padding: 32px 34px;
     border-radius: 20px;
     border: 1.5px solid rgba(255, 215, 0, 0.32);
@@ -1586,4 +1579,46 @@ body.sgl-super-aura-dark .game-card.selected.sgl-card-super:not(.has-box3d) .cov
 body.sgl-super-aura-shield .game-card.selected.sgl-card-super:not(.has-box3d) .cover-box {
     border-color: #38bdf8 !important;
     box-shadow: 0 0 0 4px rgba(56,189,248,0.28), 0 0 36px rgba(56,189,248,0.85) !important;
+}
+
+/* IDLE GPU OPTIMIZATION */
+.modal-backdrop:not(.active), .modal-backdrop:not(.active) * { animation: none !important; }
+
+/* === GPU-LIGHT GRADIENTS, SUPER AURA & FX SPEED (v1.5.1) === */
+:root { --sgl-fx-speed: 1; }
+
+@keyframes sglBgDrift {
+    0%   { transform: translate3d(-14%, -10%, 0) rotate(-3deg) scale(1.02); }
+    50%  { transform: translate3d(14%, 10%, 0) rotate(3deg) scale(1.06); }
+    100% { transform: translate3d(-14%, -10%, 0) rotate(-3deg) scale(1.02); }
+}
+.bg-layer {
+    inset: -32% !important;
+    width: auto !important;
+    height: auto !important;
+    background-size: 100% 100% !important;
+    will-change: transform;
+}
+.bg-layer.active {
+    animation: sglBgDrift calc(10s / var(--sgl-fx-speed, 1)) ease-in-out infinite !important;
+}
+body.lite-mode .bg-layer.active { animation: none !important; }
+
+/* Чистая GPU-лёгкая SUPER-аура без вращающегося градиента внутри обложки */
+.game-card.selected.sgl-card-super:not(.has-box3d) .cover-box {
+    border-color: #FFD700 !important;
+    box-shadow: 0 16px 38px rgba(0, 0, 0, 0.72), 0 0 26px rgba(255, 215, 0, 0.65) !important;
+    animation: sglSuperLevitate calc(3.4s / var(--sgl-fx-speed, 1)) ease-in-out infinite !important;
+}
+body.sgl-super-aura-hyper .game-card.selected.sgl-card-super:not(.has-box3d) .cover-box {
+    border-color: #38bdf8 !important;
+    box-shadow: 0 16px 38px rgba(0, 0, 0, 0.72), 0 0 28px rgba(56, 189, 248, 0.75) !important;
+}
+body.sgl-super-aura-dark .game-card.selected.sgl-card-super:not(.has-box3d) .cover-box {
+    border-color: #9333ea !important;
+    box-shadow: 0 16px 38px rgba(0, 0, 0, 0.85), 0 0 28px rgba(147, 51, 234, 0.78) !important;
+}
+body.sgl-super-aura-shield .game-card.selected.sgl-card-super:not(.has-box3d) .cover-box {
+    border-color: #38bdf8 !important;
+    box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.3), 0 0 30px rgba(56, 189, 248, 0.78) !important;
 }

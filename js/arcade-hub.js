@@ -46,12 +46,14 @@
         } catch (_) {}
     }
 
-    function logHeatmap(minsAdd, launchAdd) {
+    function logHeatmap(minsAdd, launchAdd, gameName) {
         const st = loadState(), k = todayKey();
         if (!st.heatmap) st.heatmap = {};
-        const cur = st.heatmap[k] || { mins: 0, launches: 0 };
+        const cur = st.heatmap[k] || { mins: 0, launches: 0, games: {} };
         cur.mins = +(cur.mins + (minsAdd || 0)).toFixed(1);
         cur.launches += (launchAdd || 0);
+        if (!cur.games) cur.games = {};
+        if (gameName) cur.games[gameName] = +((cur.games[gameName] || 0) + Math.max(0.5, minsAdd || 1)).toFixed(1);
         st.heatmap[k] = cur;
         saveState(st);
     }
@@ -66,24 +68,31 @@
             '.ah-rings{display:inline-flex;align-items:center;gap:6px;padding:5px 13px;border-radius:999px;background:rgba(250,204,21,0.16);border:1px solid rgba(250,204,21,0.45);color:#fde047;font-size:12px;font-weight:900;}',
             '.ah-body{flex:1;min-height:430px;max-height:62vh;overflow-y:auto;padding-right:4px;}',
             '.ah-chao-grid{display:grid;grid-template-columns:320px minmax(0,1fr);gap:16px;align-items:stretch;}',
-            '.ah-stage{background:radial-gradient(circle at 50% 45%,rgba(56,189,248,0.22),#070b14 78%);border:1px solid rgba(255,255,255,0.14);border-radius:14px;position:relative;height:360px;overflow:hidden;cursor:grab;}',
-            '.ah-card{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:8px;}',
+            '.ah-stage{background:radial-gradient(circle at 50% 42%,rgba(56,189,248,0.22),#070b14 78%);border:1px solid rgba(255,255,255,0.14);border-radius:14px;position:relative;height:360px;overflow:hidden;cursor:grab;}',
+            '.ah-card{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:8px;position:relative;}',
             '.ah-bar{height:8px;border-radius:999px;background:rgba(255,255,255,0.1);overflow:hidden;}',
             '.ah-bar>i{display:block;height:100%;background:linear-gradient(90deg,#38bdf8,#facc15);transition:width 0.3s;}',
             '.ah-emb-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:8px;margin-bottom:14px;}',
             '.ah-emb{padding:9px;border-radius:10px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);text-align:center;font-size:11px;display:flex;flex-direction:column;gap:5px;align-items:center;}',
             '.ah-emb.on{border-color:#fde047;background:rgba(250,204,21,0.1);}.ah-emb.off{opacity:0.48;filter:grayscale(0.9);border-style:dashed;}',
-            '.ah-heat-wrap{overflow-x:auto;padding:10px;background:rgba(0,0,0,0.28);border:1px solid rgba(255,255,255,0.1);border-radius:12px;}',
+            '.ah-heat-wrap{overflow-x:auto;padding:12px;background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.1);border-radius:12px;display:flex;flex-direction:column;gap:8px;}',
+            '.ah-heat-months{display:grid;grid-auto-flow:column;grid-auto-columns:14px;padding-left:28px;font-size:10px;color:#94a3b8;font-weight:700;height:14px;}',
+            '.ah-heat-main{display:flex;gap:6px;align-items:flex-start;}',
+            '.ah-heat-days{display:grid;grid-template-rows:repeat(7,11px);gap:3px;font-size:9.5px;color:#94a3b8;font-weight:700;width:22px;line-height:11px;}',
             '.ah-heat-grid{display:grid;grid-auto-flow:column;grid-template-rows:repeat(7,11px);gap:3px;width:max-content;}',
-            '.ah-cell{width:11px;height:11px;border-radius:2px;background:#0f172a;border:1px solid rgba(255,255,255,0.05);}',
-            '.ah-c1{background:#064e3b;}.ah-c2{background:#059669;}.ah-c3{background:#10b981;}.ah-c4{background:#34d399;box-shadow:0 0 6px rgba(52,211,153,0.6);}',
-            '@keyframes ahReelSpin{0%{transform:translateY(-22px);filter:blur(2px)}50%{transform:translateY(22px);filter:blur(2px)}100%{transform:translateY(-22px);filter:blur(2px)}}',
-            '@keyframes ahReelStop{0%{transform:scale(1.18)}100%{transform:scale(1)}}',
-            '.ah-slots{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:10px 0;}',
-            '.ah-reel{height:84px;border-radius:12px;background:linear-gradient(180deg,#090d16,#1e1b4b,#090d16);border:2px solid #facc15;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;overflow:hidden;box-shadow:inset 0 0 18px rgba(0,0,0,0.85);}',
-            '.ah-reel-inner{display:flex;flex-direction:column;align-items:center;gap:3px;}',
-            '.ah-reel.spinning .ah-reel-inner{animation:ahReelSpin 0.14s linear infinite;}',
-            '.ah-reel.stopped .ah-reel-inner{animation:ahReelStop 0.24s cubic-bezier(0.34,1.56,0.64,1);}',
+            '.ah-cell{width:11px;height:11px;border-radius:2px;background:#0f172a;border:1px solid rgba(255,255,255,0.06);transition:transform 0.12s;}',
+            '.ah-cell:hover{transform:scale(1.35);border-color:#fde047;z-index:2;}',
+            '.ah-c1{background:#064e3b;}.ah-c2{background:#059669;}.ah-c3{background:#10b981;}.ah-c4{background:#34d399;box-shadow:0 0 6px rgba(52,211,153,0.65);}',
+            '.ah-heat-legend{display:flex;align-items:center;justify-content:flex-end;gap:5px;font-size:10px;color:#94a3b8;}',
+            '#ah-heat-tip{position:fixed;z-index:9999;pointer-events:none;padding:7px 10px;border-radius:8px;background:rgba(9,13,22,0.96);border:1px solid rgba(250,204,21,0.55);color:#f8fafc;font-size:11px;line-height:1.4;box-shadow:0 8px 24px rgba(0,0,0,0.75);display:none;}',
+            '.ah-slots-wrap{position:relative;margin:10px 0;}',
+            '.ah-win-line{position:absolute;left:-4px;right:-4px;top:50%;height:3px;transform:translateY(-50%);background:linear-gradient(90deg,transparent,#facc15,#fde047,#facc15,transparent);opacity:0.25;pointer-events:none;z-index:3;transition:opacity 0.25s,box-shadow 0.25s;}',
+            '.ah-win-line.lit{opacity:1;box-shadow:0 0 14px #facc15;}',
+            '.ah-slots{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;position:relative;}',
+            '.ah-reel{height:96px;border-radius:12px;background:linear-gradient(180deg,#050811 0%,#1e1b4b 50%,#050811 100%);border:2px solid #facc15;overflow:hidden;position:relative;box-shadow:inset 0 0 22px rgba(0,0,0,0.9);}',
+            '.ah-reel-strip{position:absolute;left:0;right:0;top:0;will-change:transform;}',
+            '.ah-reel-item{height:96px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;}',
+            '.ah-slot-fx{position:absolute;inset:0;pointer-events:none;z-index:5;}',
             '.ah-quiz-opts{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;}',
             '.ah-title-pill{display:inline-block;padding:2px 9px;border-radius:999px;background:rgba(250,204,21,0.18);border:1px solid rgba(250,204,21,0.5);color:#fde047;font-size:10.5px;font-weight:800;}'
         ).join('\n');
@@ -242,7 +251,7 @@
                     const st = loadState();
                     const hr = new Date().getHours();
                     if (hr >= 23 || hr < 5) { st.nightRun = true; saveState(st); }
-                    logHeatmap(0, 1);
+                    logHeatmap(0, 1, game.name || game.id);
                 }
                 return origLaunch.apply(this, arguments);
             };
@@ -254,7 +263,7 @@
                 if (runId && !wasRunning) wasRunning = { id: runId, ts: Date.now() };
                 else if (!runId && wasRunning) {
                     const mins = Math.max(0.5, (Date.now() - wasRunning.ts) / 60000);
-                    logHeatmap(mins, 0);
+                    logHeatmap(mins, 0, wasRunning.id);
                     const st = loadState(); st.chao.xp = (st.chao.xp || 0) + Math.floor(mins); saveState(st);
                     await verifyActiveChallenge(wasRunning.id, mins);
                     wasRunning = null; pullLiveStats();
@@ -269,113 +278,149 @@
         const cvs = mk('canvas', '', 'width:100%;height:100%;display:block;');
         host.appendChild(cvs);
         const ctx = cvs.getContext('2d');
-        let yaw = 0.2, pitch = 0.05, drag = false, lx = 0, ly = 0, bounce = 0;
+        let yaw = 0.18, pitch = 0.04, drag = false, lx = 0, ly = 0, bounce = 0, emoTimer = 0, emoShape = 'ball';
         const sparks = new Array();
 
         cvs.onpointerdown = e => { drag = true; lx = e.clientX; ly = e.clientY; cvs.setPointerCapture(e.pointerId); };
-        cvs.onpointermove = e => { if (!drag) return; yaw += (e.clientX - lx) * 0.015; pitch = Math.max(-0.4, Math.min(0.4, pitch + (e.clientY - ly) * 0.01)); lx = e.clientX; ly = e.clientY; };
+        cvs.onpointermove = e => {
+            if (!drag) return;
+            yaw += (e.clientX - lx) * 0.015;
+            pitch = Math.max(-0.35, Math.min(0.35, pitch + (e.clientY - ly) * 0.01));
+            lx = e.clientX; ly = e.clientY;
+        };
         cvs.onpointerup = e => {
             if (drag && Math.hypot(e.clientX - lx, e.clientY - ly) < 6) {
-                bounce = 1; onPet();
-                for (let i = 0; i < 12; i++) sparks.push({ x: cvs.width * 0.5, y: cvs.height * 0.42, vx: (Math.random() - 0.5) * 5.5, vy: -2 - Math.random() * 4, life: 1 });
+                bounce = 1; emoTimer = 110;
+                const shapes = Array.of('heart', 'star', 'halo');
+                emoShape = shapes.at(Math.floor(Math.random() * shapes.length));
+                onPet();
+                for (let i = 0; i < 16; i++) {
+                    const ang = (i / 16) * Math.PI * 2;
+                    sparks.push({ x: cvs.width * 0.5, y: cvs.height * 0.36, vx: Math.cos(ang) * (1.8 + Math.random() * 2.8), vy: Math.sin(ang) * (1.8 + Math.random() * 2.8) - 1.2, life: 1, sz: 2 + Math.random() * 2.5 });
+                }
             }
             drag = false;
         };
 
+        function drawEmo(cx, oy, col, shape, t) {
+            ctx.save(); ctx.translate(cx, oy); ctx.shadowColor = col; ctx.shadowBlur = 18;
+            ctx.fillStyle = col; ctx.strokeStyle = col;
+            if (shape === 'heart') {
+                const sc = 1 + Math.sin(t * 0.015) * 0.12; ctx.scale(sc, sc);
+                ctx.beginPath(); ctx.moveTo(0, 6);
+                ctx.bezierCurveTo(-12, -4, -10, -14, 0, -6);
+                ctx.bezierCurveTo(10, -14, 12, -4, 0, 6); ctx.fill();
+            } else if (shape === 'star') {
+                ctx.rotate(t * 0.004);
+                ctx.beginPath();
+                for (let i = 0; i < 10; i++) {
+                    const r = i % 2 === 0 ? 11 : 5, a = (i * Math.PI) / 5 - Math.PI * 0.5;
+                    if (i === 0) ctx.moveTo(Math.cos(a) * r, Math.sin(a) * r); else ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r);
+                }
+                ctx.closePath(); ctx.fill();
+            } else if (shape === 'halo') {
+                ctx.lineWidth = 3.2; ctx.beginPath(); ctx.ellipse(0, 0, 24, 7.5, 0, 0, Math.PI * 2); ctx.stroke();
+            } else {
+                const g = ctx.createRadialGradient(-3, -3, 1, 0, 0, 10);
+                g.addColorStop(0, '#ffffff'); g.addColorStop(0.5, col); g.addColorStop(1, 'rgba(255,255,255,0.1)');
+                ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, 9.5, 0, Math.PI * 2); ctx.fill();
+            }
+            ctx.restore();
+        }
         function frame(t) {
             if (!cvs.isConnected) return;
             chaoRaf = requestAnimationFrame(frame);
             const w = host.clientWidth || 320, h = host.clientHeight || 360;
             if (cvs.width !== w || cvs.height !== h) { cvs.width = w; cvs.height = h; }
-            if (!drag) yaw += 0.014;
+            if (!drag) yaw += 0.011;
             bounce *= 0.88;
+            if (emoTimer > 0) emoTimer--;
             ctx.clearRect(0, 0, w, h);
 
-            const bob = Math.sin(t * 0.004) * 7 - bounce * 18;
-            const cx = w * 0.5, cy = h * 0.56 + bob + pitch * 20;
-            const sinY = Math.sin(yaw), cosY = Math.cos(yaw), faceX = sinY * 22;
+            const breath = Math.sin(t * 0.0032) * 0.03;
+            const bob = Math.sin(t * 0.0038) * 6.5 - bounce * 18;
+            const cx = w * 0.5, cy = h * 0.56 + bob + pitch * 18;
+            const sinY = Math.sin(yaw), cosY = Math.cos(yaw), faceX = sinY * 20;
 
-            ctx.fillStyle = 'rgba(0,0,0,0.45)';
-            ctx.beginPath(); ctx.ellipse(w * 0.5, h * 0.86, 56, 13, 0, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = 'rgba(0,0,0,0.42)';
+            ctx.beginPath(); ctx.ellipse(w * 0.5, h * 0.86, 52 * (1 - bounce * 0.2), 12, 0, 0, Math.PI * 2); ctx.fill();
 
-            // Крылышки за спиной
-            const flap = Math.sin(t * 0.012) * 5;
-            ctx.fillStyle = form.wing; ctx.globalAlpha = 0.78;
-            ctx.beginPath(); ctx.ellipse(cx - 24 - cosY * 6, cy + 22 - flap, 16, 10, -0.5, 0, Math.PI * 2); ctx.fill();
-            ctx.beginPath(); ctx.ellipse(cx + 24 + cosY * 6, cy + 22 - flap, 16, 10, 0.5, 0, Math.PI * 2); ctx.fill();
+            // Полупрозрачные крылышки за спиной
+            const flap = Math.sin(t * 0.011) * 0.22;
+            ctx.save(); ctx.globalAlpha = 0.72; ctx.fillStyle = form.wing; ctx.strokeStyle = 'rgba(255,255,255,0.45)'; ctx.lineWidth = 1.2;
+            ctx.save(); ctx.translate(cx - 22, cy + 20); ctx.rotate(-0.55 - flap);
+            ctx.beginPath(); ctx.ellipse(-10, 0, 15, 9, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke(); ctx.restore();
+            ctx.save(); ctx.translate(cx + 22, cy + 20); ctx.rotate(0.55 + flap);
+            ctx.beginPath(); ctx.ellipse(10, 0, 15, 9, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke(); ctx.restore();
+            ctx.restore();
 
-            // Ножки и пухлое туловище Чао
-            ctx.globalAlpha = 0.92;
+            // Ножки
             ctx.fillStyle = form.body;
-            ctx.beginPath(); ctx.ellipse(cx - 14 + sinY * 6, cy + 62, 11, 16, -0.2, 0, Math.PI * 2); ctx.fill();
-            ctx.beginPath(); ctx.ellipse(cx + 14 + sinY * 6, cy + 62, 11, 16, 0.2, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.ellipse(cx - 13 + sinY * 5, cy + 62, 10, 14, -0.18, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.ellipse(cx + 13 + sinY * 5, cy + 62, 10, 14, 0.18, 0, Math.PI * 2); ctx.fill();
 
-            const bg = ctx.createRadialGradient(cx - 10, cy + 16, 6, cx, cy + 32, 38);
-            bg.addColorStop(0, '#ffffff'); bg.addColorStop(0.35, form.body); bg.addColorStop(1, form.belly);
-            ctx.fillStyle = bg;
-            ctx.beginPath(); ctx.ellipse(cx, cy + 32, 30, 35, 0, 0, Math.PI * 2); ctx.fill();
-
-            // Ручки-лапки с цветными кончиками
-            const armWave = Math.sin(t * 0.005) * 0.25;
-            ctx.save(); ctx.translate(cx - 32, cy + 26); ctx.rotate(0.45 + armWave);
-            ctx.fillStyle = form.body; ctx.beginPath(); ctx.ellipse(0, 8, 9, 18, 0, 0, Math.PI * 2); ctx.fill();
-            ctx.fillStyle = form.tip; ctx.beginPath(); ctx.arc(0, 20, 7.5, 0, Math.PI * 2); ctx.fill();
-            ctx.restore();
-
-            ctx.save(); ctx.translate(cx + 32, cy + 26); ctx.rotate(-0.45 - armWave);
-            ctx.fillStyle = form.body; ctx.beginPath(); ctx.ellipse(0, 8, 9, 18, 0, 0, Math.PI * 2); ctx.fill();
-            ctx.fillStyle = form.tip; ctx.beginPath(); ctx.arc(0, 20, 7.5, 0, Math.PI * 2); ctx.fill();
-            ctx.restore();
-
-            // Каплевидная голова Чао с заострённым хохолком
-            const hg = ctx.createRadialGradient(cx - 14, cy - 38, 8, cx, cy - 24, 52);
-            hg.addColorStop(0, '#ffffff'); hg.addColorStop(0.32, form.body); hg.addColorStop(1, form.belly);
-            ctx.fillStyle = hg;
+            // Единый плавный силуэт: туловище + шея + каплевидная голова с хохолком
+            ctx.save();
+            ctx.translate(cx, cy);
+            ctx.scale(1 + breath, 1 - breath * 0.7);
+            const bodyG = ctx.createRadialGradient(-12, -26, 8, 0, 12, 86);
+            bodyG.addColorStop(0, '#ffffff'); bodyG.addColorStop(0.28, form.body); bodyG.addColorStop(0.82, form.belly); bodyG.addColorStop(1, form.body);
+            ctx.fillStyle = bodyG; ctx.strokeStyle = 'rgba(255,255,255,0.45)'; ctx.lineWidth = 1.6;
             ctx.beginPath();
-            ctx.moveTo(cx - sinY * 14, cy - 82);
-            ctx.bezierCurveTo(cx + 46, cy - 62, cx + 52, cy - 4, cx, cy + 4);
-            ctx.bezierCurveTo(cx - 52, cy - 4, cx - 46, cy - 62, cx - sinY * 14, cy - 82);
-            ctx.fill();
+            ctx.moveTo(-sinY * 14, -84);
+            ctx.bezierCurveTo(22, -74, 46, -42, 44, -14);
+            ctx.bezierCurveTo(42, 2, 24, 6, 22, 12);
+            ctx.bezierCurveTo(32, 24, 30, 56, 0, 58);
+            ctx.bezierCurveTo(-30, 56, -32, 24, -22, 12);
+            ctx.bezierCurveTo(-24, 6, -42, 2, -44, -14);
+            ctx.bezierCurveTo(-46, -42, -22, -74, -sinY * 14, -84);
+            ctx.closePath(); ctx.fill(); ctx.stroke();
 
             // Кончик хохолка
             ctx.fillStyle = form.tip;
-            ctx.beginPath(); ctx.arc(cx - sinY * 12, cy - 75, 9, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.arc(-sinY * 13, -76, 8.5, 0, Math.PI * 2); ctx.fill();
 
-            // Большие глаза Чао и улыбка
-            if (cosY > -0.25) {
+            // Ручки-лапки
+            const armW = Math.sin(t * 0.005) * 0.22;
+            ctx.save(); ctx.translate(-26, 22); ctx.rotate(0.5 + armW);
+            ctx.fillStyle = form.body; ctx.beginPath(); ctx.ellipse(0, 8, 8.5, 16, 0, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = form.tip; ctx.beginPath(); ctx.arc(0, 19, 6.5, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+            ctx.save(); ctx.translate(26, 22); ctx.rotate(-0.5 - armW);
+            ctx.fillStyle = form.body; ctx.beginPath(); ctx.ellipse(0, 8, 8.5, 16, 0, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = form.tip; ctx.beginPath(); ctx.arc(0, 19, 6.5, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+
+            // Глаза с двумя бликами, морганием и румянцем
+            if (cosY > -0.2) {
+                const blink = (t % 3800) < 130 ? 0.14 : 1;
                 ctx.globalAlpha = Math.max(0.25, cosY);
-                const ex1 = cx + faceX - 15 * cosY, ex2 = cx + faceX + 15 * cosY, ey = cy - 22;
-                ctx.fillStyle = '#0f172a';
-                ctx.beginPath(); ctx.ellipse(ex1, ey, 7.5 * Math.max(0.4, cosY), 11, 0, 0, Math.PI * 2); ctx.fill();
-                ctx.beginPath(); ctx.ellipse(ex2, ey, 7.5 * Math.max(0.4, cosY), 11, 0, 0, Math.PI * 2); ctx.fill();
-                ctx.fillStyle = '#38bdf8';
-                ctx.beginPath(); ctx.ellipse(ex1, ey + 3, 5 * Math.max(0.4, cosY), 6, 0, 0, Math.PI * 2); ctx.fill();
-                ctx.beginPath(); ctx.ellipse(ex2, ey + 3, 5 * Math.max(0.4, cosY), 6, 0, 0, Math.PI * 2); ctx.fill();
-                ctx.fillStyle = '#ffffff';
-                ctx.beginPath(); ctx.arc(ex1 - 2, ey - 4, 2.8, 0, Math.PI * 2); ctx.fill();
-                ctx.beginPath(); ctx.arc(ex2 - 2, ey - 4, 2.8, 0, Math.PI * 2); ctx.fill();
+                const ex1 = faceX - 15 * cosY, ex2 = faceX + 15 * cosY, ey = -22;
+                ctx.fillStyle = 'rgba(244,114,182,0.34)';
+                ctx.beginPath(); ctx.ellipse(ex1 - 7, ey + 10, 6.5, 3.6, 0, 0, Math.PI * 2); ctx.fill();
+                ctx.beginPath(); ctx.ellipse(ex2 + 7, ey + 10, 6.5, 3.6, 0, 0, Math.PI * 2); ctx.fill();
+                Array.of(ex1, ex2).forEach(ex => {
+                    ctx.fillStyle = '#0f172a';
+                    ctx.beginPath(); ctx.ellipse(ex, ey, 7.5 * Math.max(0.45, cosY), 11 * blink, 0, 0, Math.PI * 2); ctx.fill();
+                    if (blink > 0.3) {
+                        ctx.fillStyle = '#38bdf8';
+                        ctx.beginPath(); ctx.ellipse(ex, ey + 3, 5 * Math.max(0.45, cosY), 6, 0, 0, Math.PI * 2); ctx.fill();
+                        ctx.fillStyle = '#ffffff';
+                        ctx.beginPath(); ctx.arc(ex - 2.2, ey - 4.2, 2.8, 0, Math.PI * 2); ctx.fill();
+                        ctx.beginPath(); ctx.arc(ex + 2.4, ey + 2.2, 1.3, 0, Math.PI * 2); ctx.fill();
+                    }
+                });
                 ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 2;
-                ctx.beginPath(); ctx.arc(cx + faceX, ey + 11, 5, 0.15 * Math.PI, 0.85 * Math.PI); ctx.stroke();
+                ctx.beginPath(); ctx.arc(faceX, ey + 11, 4.5, 0.15 * Math.PI, 0.85 * Math.PI); ctx.stroke();
             }
+            ctx.restore();
 
-            // Парящий эмо-шарик / нимб над головой
-            ctx.globalAlpha = 1;
-            const orbY = cy - 104 + Math.sin(t * 0.006) * 5;
-            ctx.shadowColor = form.halo; ctx.shadowBlur = 16;
-            if (form.id === 'hero' || form.id === 'gold') {
-                ctx.strokeStyle = form.halo; ctx.lineWidth = 3.2;
-                ctx.beginPath(); ctx.ellipse(cx, orbY, 24, 7.5, 0, 0, Math.PI * 2); ctx.stroke();
-            } else {
-                ctx.fillStyle = form.halo;
-                ctx.beginPath(); ctx.arc(cx, orbY, 9.5, 0, Math.PI * 2); ctx.fill();
-            }
-            ctx.shadowBlur = 0;
+            const defShape = (form.id === 'hero' || form.id === 'gold') ? 'halo' : 'ball';
+            drawEmo(cx, cy - 106 + Math.sin(t * 0.006) * 5, form.halo, emoTimer > 0 ? emoShape : defShape, t);
 
             for (let i = sparks.length - 1; i >= 0; i--) {
-                const sp = sparks.at(i); sp.x += sp.vx; sp.y += sp.vy; sp.life -= 0.03;
+                const sp = sparks.at(i); sp.x += sp.vx; sp.y += sp.vy; sp.life -= 0.028;
                 if (sp.life <= 0) { sparks.splice(i, 1); continue; }
                 ctx.fillStyle = 'rgba(253,224,71,' + sp.life.toFixed(2) + ')';
-                ctx.beginPath(); ctx.arc(sp.x, sp.y, 3.5, 0, Math.PI * 2); ctx.fill();
+                ctx.beginPath(); ctx.arc(sp.x, sp.y, sp.sz, 0, Math.PI * 2); ctx.fill();
             }
         }
         chaoRaf = requestAnimationFrame(frame);
@@ -395,7 +440,7 @@
         c1.append(
             mk('div', '', 'font-size:15px;font-weight:900;color:#fde047;', 'Кристальный Чао • Ур. ' + lv),
             mk('div', '', 'font-size:12px;color:#93c5fd;font-weight:700;', 'Форма эволюции: ' + form.name),
-            mk('div', '', 'font-size:11.5px;opacity:0.78;line-height:1.45;', 'Крутите спутника мышью и кликайте, чтобы погладить. Форма эволюционирует автоматически от ваших Изумрудов, достижений и игрового времени!')
+            mk('div', '', 'font-size:11.5px;opacity:0.78;line-height:1.45;', 'Вращай спутника мышью и кликай, чтобы погладить. Форма Чао растёт вместе с Изумрудами, трофеями и часами в играх.')
         );
 
         const mkMeter = (lbl, pct) => {
@@ -486,7 +531,7 @@
         });
         body.appendChild(grid);
 
-        body.appendChild(mk('div', '', 'font-size:12.5px;font-weight:800;color:#34d399;margin-bottom:6px;', 'Годовая карта активности (52 недели × 7 дней)'));
+        body.appendChild(mk('div', '', 'font-size:12.5px;font-weight:800;color:#34d399;margin-bottom:6px;', 'Карта активности за год'));
         const hWrap = mk('div', 'ah-heat-wrap', ''), hGrid = mk('div', 'ah-heat-grid', ''), hm = st.heatmap || {}, now = new Date();
         for (let d = 363; d >= 0; d--) {
             const dt = new Date(now.getTime() - d * 86400000);
@@ -518,18 +563,50 @@
             { id: '777',   col: '#fde047', tag: 'JACKPOT' }
         );
 
+        const wrap = mk('div', 'ah-slots-wrap', '');
+        const winLine = mk('div', 'ah-win-line', '');
         const reelsBox = mk('div', 'ah-slots', '');
-        const rEls = Array.of(mk('div', 'ah-reel', '', ''), mk('div', 'ah-reel', '', ''), mk('div', 'ah-reel', '', ''));
-        function paintReel(el, sym) {
-            el.innerHTML = '';
-            const inB = mk('div', 'ah-reel-inner', '');
-            inB.append(
-                mk('span', '', 'font-size:18px;font-weight:900;letter-spacing:1px;color:' + sym.col + ';text-shadow:0 0 10px ' + sym.col + ';', sym.id),
+        const fxCvs = mk('canvas', 'ah-slot-fx', '');
+        const strips = new Array();
+
+        function makeSymEl(sym) {
+            const it = mk('div', 'ah-reel-item', '');
+            it.append(
+                mk('span', '', 'font-size:19px;font-weight:900;letter-spacing:1px;color:' + sym.col + ';text-shadow:0 0 12px ' + sym.col + ';', sym.id),
                 mk('span', '', 'font-size:9px;font-weight:800;opacity:0.65;letter-spacing:1.2px;', sym.tag)
             );
-            el.appendChild(inB);
+            return it;
         }
-        rEls.forEach(r => { paintReel(r, SYMS.at(4)); reelsBox.appendChild(r); });
+
+        for (let r = 0; r < 3; r++) {
+            const reel = mk('div', 'ah-reel', '');
+            const strip = mk('div', 'ah-reel-strip', '');
+            for (let k = 0; k < 24; k++) strip.appendChild(makeSymEl(SYMS.at(k % SYMS.length)));
+            strip.style.transform = 'translateY(-384px)';
+            reel.appendChild(strip); reelsBox.appendChild(reel); strips.push(strip);
+        }
+        wrap.append(winLine, reelsBox, fxCvs);
+
+        function burstGoldParticles() {
+            fxCvs.width = wrap.clientWidth || 360; fxCvs.height = wrap.clientHeight || 100;
+            const ctx = fxCvs.getContext('2d'), pts = new Array();
+            for (let i = 0; i < 36; i++) {
+                pts.push({ x: fxCvs.width * (0.2 + Math.random() * 0.6), y: fxCvs.height * 0.5, vx: (Math.random() - 0.5) * 7, vy: -2 - Math.random() * 5, life: 1, r: 2.5 + Math.random() * 3 });
+            }
+            function step() {
+                if (!fxCvs.isConnected) return;
+                ctx.clearRect(0, 0, fxCvs.width, fxCvs.height);
+                let alive = 0;
+                pts.forEach(p => {
+                    if (p.life <= 0) return;
+                    alive++; p.x += p.vx; p.y += p.vy; p.vy += 0.22; p.life -= 0.025;
+                    ctx.fillStyle = 'rgba(250,204,21,' + Math.max(0, p.life).toFixed(2) + ')';
+                    ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2); ctx.fill();
+                });
+                if (alive > 0) requestAnimationFrame(step);
+            }
+            requestAnimationFrame(step);
+        }
 
         const resLbl = mk('div', '', 'font-size:12px;font-weight:700;text-align:center;min-height:20px;color:#93c5fd;', 'Нажмите «Крутить», чтобы испытать удачу');
         const spinBtn = mk('button', 'btn-small btn-accent', 'padding:9px;font-weight:900;', 'Крутить барабан (-15 Колец)');
@@ -541,41 +618,50 @@
             const st = loadState();
             if ((st.rings || 0) < 15) { if (typeof showToast === 'function') showToast('Недостаточно Колец (нужно 15)!', true); return; }
             st.rings -= 15; st.spins = (st.spins || 0) + 1; saveState(st); refreshHeader();
-            spinning = true; spinBtn.disabled = true;
+            spinning = true; spinBtn.disabled = true; winLine.classList.remove('lit');
             if (typeof playSfx === 'function') playSfx('switch');
 
-            const chosen = Array.of(
-                SYMS.at(Math.floor(Math.random() * SYMS.length)),
-                SYMS.at(Math.floor(Math.random() * SYMS.length)),
-                SYMS.at(Math.floor(Math.random() * SYMS.length))
+            const chosenIdx = Array.of(
+                Math.floor(Math.random() * SYMS.length),
+                Math.floor(Math.random() * SYMS.length),
+                Math.floor(Math.random() * SYMS.length)
             );
-            rEls.forEach(el => { el.classList.remove('stopped'); el.classList.add('spinning'); });
+            const durations = Array.of(900, 1400, 1900);
+            const t0 = performance.now();
 
-            const stopTimers = Array.of(650, 1050, 1450);
-            stopTimers.forEach((ms, idx) => {
-                setTimeout(() => {
-                    const el = rEls.at(idx);
-                    el.classList.remove('spinning');
-                    paintReel(el, chosen.at(idx));
-                    void el.offsetWidth;
-                    el.classList.add('stopped');
-                    if (typeof playSfx === 'function') playSfx('switch');
-                }, ms);
+            strips.forEach((strip, idx) => {
+                const dur = durations.at(idx);
+                const targetSlot = 15 + chosenIdx.at(idx);
+                const targetY = targetSlot * 96;
+                function animReel(now) {
+                    const p = Math.min(1, (now - t0) / dur);
+                    const ease = 1 - Math.pow(1 - p, 3);
+                    const bounceOff = p > 0.88 ? Math.sin(((p - 0.88) / 0.12) * Math.PI) * 14 : 0;
+                    const y = ease * targetY + bounceOff;
+                    strip.style.transform = 'translateY(' + (-y).toFixed(1) + 'px)';
+                    strip.style.filter = p < 0.72 ? 'blur(1.2px)' : 'none';
+                    if (p < 1) requestAnimationFrame(animReel);
+                    else {
+                        strip.style.transform = 'translateY(' + (-targetY) + 'px)';
+                        strip.style.filter = 'none';
+                        if (typeof playSfx === 'function') playSfx('switch');
+                    }
+                }
+                requestAnimationFrame(animReel);
             });
 
             setTimeout(() => {
                 spinning = false; spinBtn.disabled = false;
-                const a = chosen.at(0).id, b = chosen.at(1).id, c = chosen.at(2).id;
+                const a = SYMS.at(chosenIdx.at(0)).id, b = SYMS.at(chosenIdx.at(1)).id, c = SYMS.at(chosenIdx.at(2)).id;
                 const cur = loadState();
-                if (a === '777' && b === '777' && c === '777') {
-                    cur.rings += 300; cur.slotJackpot = true; resLbl.textContent = 'ДЖЕКПОТ 777! +300 Колец!';
-                } else if (a === b && b === c) {
-                    cur.rings += 120; resLbl.textContent = 'Тройное совпадение! +120 Колец!';
-                } else if (a === b || b === c || a === c) {
-                    cur.rings += 35; resLbl.textContent = 'Пара! +35 Колец!';
-                } else { resLbl.textContent = 'В этот раз не повезло — попробуй ещё!'; }
+                let won = false;
+                if (a === '777' && b === '777' && c === '777') { cur.rings += 300; cur.slotJackpot = true; resLbl.textContent = 'ДЖЕКПОТ 777! +300 Колец!'; won = true; }
+                else if (a === b && b === c) { cur.rings += 120; resLbl.textContent = 'Тройное совпадение! +120 Колец!'; won = true; }
+                else if (a === b || b === c || a === c) { cur.rings += 35; resLbl.textContent = 'Пара! +35 Колец!'; won = true; }
+                else { resLbl.textContent = 'В этот раз не повезло — попробуй ещё!'; }
 
-                if ((a === b || b === c || a === c) && Math.random() < 0.45) {
+                if (won) { winLine.classList.add('lit'); burstGoldParticles(); }
+                if (won && Math.random() < 0.45) {
                     const lockedT = RARE_TITLES.filter(t => !(cur.titles || new Array()).includes(t));
                     if (lockedT.length > 0) {
                         const wonT = lockedT.at(Math.floor(Math.random() * lockedT.length));
@@ -585,7 +671,7 @@
                 }
                 saveState(cur); refreshHeader(); evaluateEmblems(); updateTitlePicker();
                 if (typeof playSfx === 'function') playSfx('launch');
-            }, 1520);
+            }, 1960);
         };
 
         const titleSel = mk('select', 'custom-select', 'margin-top:4px;');
@@ -597,7 +683,7 @@
         }
         titleSel.onchange = () => { const cur = loadState(); cur.activeTitle = titleSel.value; saveState(cur); refreshHeader(); };
         updateTitlePicker();
-        slotCard.append(reelsBox, resLbl, spinBtn, titleSel);
+        slotCard.append(wrap, resLbl, spinBtn, titleSel);
         grid.appendChild(slotCard);
         renderQuizCard(grid, refreshHeader);
         body.appendChild(grid);

@@ -8,8 +8,8 @@ import time
 import urllib.request
 from pathlib import Path
 
-LAUNCHER_VERSION = "3.7.0"
-DEFAULT_GH_REPO = "SonicGamesLauncher/SonicGamesLauncher"
+LAUNCHER_VERSION = "1.4.1"
+DEFAULT_GH_REPO = "thedmitgame/SonicGamesLauncher"
 
 
 def load_shots_meta(base_dir):

@@ -19,7 +19,7 @@
             '.mus-stage-col{background:radial-gradient(circle at 50% 48%,rgba(37,99,235,0.26),#070b14 76%);border:1px solid rgba(255,215,0,0.28);border-radius:16px;padding:14px;display:flex;flex-direction:column;justify-content:space-between;position:relative;overflow:hidden;}',
             '.mus-canvas-host{flex:1;min-height:240px;position:relative;z-index:2;}',
             '.mus-base-puck{width:190px;height:30px;margin:-14px auto 8px;border-radius:50%;position:relative;z-index:1;pointer-events:none;}',
-            '.mus-orbit-ring{position:absolute;left:50%;top:46%;width:210px;height:74px;margin:-37px 0 0 -105px;border-radius:50%;border:2px dashed rgba(255,215,0,0.42);box-shadow:0 0 18px rgba(255,215,0,0.22);pointer-events:none;z-index:1;animation:musOrbitSpin 9s linear infinite;}',
+            '.mus-orbit-ring{position:absolute;left:50%;top:46%;width:210px;height:74px;margin:-37px 0 0 -105px;border-radius:50%;border:2px dashed rgba(255,215,0,0.42);box-shadow:0 0 18px rgba(255,215,0,0.22);pointer-events:none;z-index:1;}',
             '@keyframes musOrbitSpin{0%{transform:rotate(-14deg) scale(0.96)}50%{transform:rotate(-14deg) scale(1.04)}100%{transform:rotate(-14deg) scale(0.96)}}',
             '.puck-smash{background:radial-gradient(ellipse at center,#fde047 0%,#ca8a04 65%,#713f12 100%);border:2px solid #fef08a;box-shadow:0 8px 24px rgba(234,179,8,0.45);}',
             '.puck-altar{background:radial-gradient(ellipse at center,#4ade80 0%,#15803d 65%,#052e16 100%);border:2px solid #bbf7d0;box-shadow:0 8px 24px rgba(34,197,94,0.45);}',
@@ -198,6 +198,74 @@
         }
     );
 
+    function mountMuseumStageFx(stageCol) {
+        let cvs = stageCol.querySelector('.mus-fx-canvas');
+        if (!cvs) {
+            cvs = mk('canvas', 'mus-fx-canvas', 'position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:3;');
+            stageCol.appendChild(cvs);
+        }
+        const ctx = cvs.getContext('2d');
+        const sparks = new Array();
+        let unlocked = true, legendary = false, raf = 0, lastT = 0, dead = false;
+
+        function emitBurst(cnt) {
+            const w = cvs.width || 320, h = cvs.height || 300;
+            for (let i = 0; i < (cnt || 22); i++) {
+                const a = Math.random() * Math.PI * 2, sp = 1.4 + Math.random() * 3.2;
+                sparks.push({ x: w * 0.5, y: h * 0.42, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 1.1, life: 1, r: 1.8 + Math.random() * 2.4, star: Math.random() > 0.5 });
+            }
+        }
+
+        function tick(now) {
+            if (dead || !cvs.isConnected) return;
+            if (document.hidden || cvs.offsetParent === null) { setTimeout(() => { if (!dead && cvs.isConnected) requestAnimationFrame(tick); }, 450); return; }
+            raf = requestAnimationFrame(tick);
+            const d3Int = (typeof window.SGL_GET_FPS === 'function') ? window.SGL_GET_FPS('3d') : 16.6;
+            if (d3Int > 20 && now - lastT < d3Int - 3) return;
+            lastT = now;
+            const w = stageCol.clientWidth || 320, h = stageCol.clientHeight || 360;
+            if (cvs.width !== w || cvs.height !== h) { cvs.width = w; cvs.height = h; }
+            ctx.clearRect(0, 0, w, h);
+            if (!unlocked) return;
+
+            const t = now * 0.001;
+            const py = h * 0.67;
+            // Пульсирующее световое кольцо на поверхности пьедестала
+            const pulse = 0.42 + 0.35 * Math.sin(t * 2.6);
+            ctx.strokeStyle = 'rgba(253,224,71,' + pulse.toFixed(2) + ')';
+            ctx.lineWidth = 2.2;
+            ctx.beginPath(); ctx.ellipse(w * 0.5, py, 86 + Math.sin(t * 2.6) * 5, 16, 0, 0, Math.PI * 2); ctx.stroke();
+
+            // Вращающиеся энергетические дуги у легендарных наград
+            if (legendary) {
+                ctx.save(); ctx.translate(w * 0.5, h * 0.40);
+                for (let k = 0; k < 2; k++) {
+                    const ang = t * (k === 0 ? 1.3 : -1.0) + k * 2.1;
+                    ctx.strokeStyle = k === 0 ? 'rgba(56,189,248,0.58)' : 'rgba(250,204,21,0.58)';
+                    ctx.lineWidth = 2.4;
+                    ctx.beginPath(); ctx.ellipse(0, 0, 102, 34, k === 0 ? 0.35 : -0.35, ang, ang + 1.45); ctx.stroke();
+                }
+                ctx.restore();
+            }
+
+            if (Math.random() < (legendary ? 0.38 : 0.22)) {
+                sparks.push({ x: w * (0.28 + Math.random() * 0.44), y: py, vx: (Math.random() - 0.5) * 0.55, vy: -0.9 - Math.random() * 1.1, life: 1, r: 1.5 + Math.random() * 2.0, star: Math.random() > 0.65 });
+            }
+            for (let i = sparks.length - 1; i >= 0; i--) {
+                const s = sparks.at(i); s.x += s.vx; s.y += s.vy; s.life -= 0.022;
+                if (s.life <= 0) { sparks.splice(i, 1); continue; }
+                ctx.fillStyle = 'rgba(253,224,71,' + s.life.toFixed(2) + ')';
+                ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2); ctx.fill();
+            }
+        }
+        raf = requestAnimationFrame(tick);
+        return {
+            setMode(isUn, isLeg) { unlocked = isUn; legendary = isLeg; if (isUn) emitBurst(16); },
+            burst: emitBurst,
+            destroy() { dead = true; if (raf) cancelAnimationFrame(raf); }
+        };
+    }
+
     function getCustomTrophies() {
         if (typeof currentDesign === 'undefined' || !currentDesign) return new Array();
         if (!Array.isArray(currentDesign.trophyMuseum)) currentDesign.trophyMuseum = new Array();
@@ -230,9 +298,10 @@
         const dv = (stats.emeraldsMax > 0 ? 1 : 0) + (stats.achMax > 0 ? 1 : 0);
         const pct = dv > 0 ? Math.round(((emP + acP) / dv) * 100) : 0;
 
+        let stageFx = null;
         const bg = mk('div', 'modal-backdrop active', 'z-index:9898;');
         bg.id = 'sgl-museum-modal';
-        bg.onclick = (e) => { if (e.target === bg) { if (stageViewer) stageViewer.destroy(); bg.remove(); } };
+        bg.onclick = (e) => { if (e.target === bg) { if (stageViewer) stageViewer.destroy(); if (stageFx) stageFx.destroy(); bg.remove(); } };
 
         const box = mk('div', 'modal-box', 'width:920px;max-width:96vw;padding:20px 24px;');
         const topHdr = mk('div', '', 'display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap;');
@@ -251,6 +320,7 @@
         const puckEl = mk('div', 'mus-base-puck puck-smash', '');
         const infoBox = mk('div', 'mus-info-card', '');
         stageCol.append(cvsHost, puckEl, infoBox);
+        stageFx = mountMuseumStageFx(stageCol);
 
         const rightCol = mk('div', '', 'display:flex;flex-direction:column;gap:10px;min-width:0;');
         const shelfGrid = mk('div', 'mus-shelf-grid', '');
@@ -275,6 +345,8 @@
             if (stageViewer) { stageViewer.destroy(); stageViewer = null; }
 
             puckEl.className = 'mus-base-puck puck-' + (item.base || 'smash');
+            const isLeg = Boolean(item.material === 'hyper_tint' || item.material === 'super_tint' || item.id === 'tr_cup' || item.id === 'tr_hyper' || item.id === 'tr_game_sonic3');
+            if (stageFx) stageFx.setMode(unlocked, isLeg);
             if (typeof window.mountSgl3dViewer === 'function') {
                 stageViewer = window.mountSgl3dViewer(cvsHost, {
                     url: item.url || 'builtin_emerald',
@@ -282,7 +354,9 @@
                     flipUv: Boolean(item.flipUv),
                     material: unlocked ? (item.material || 'original') : 'silhouette',
                     speed: 0.9,
-                    zoom: Number(item.zoom || 0.72),
+                    zoom: Number(item.zoom || 0.92),
+                    pedestal: true,
+                    onSpinBurst: () => { if (stageFx) stageFx.burst(28); },
                     interactive: true
                 });
             }
@@ -373,7 +447,7 @@
 
         const closeB = mk('button', 'close-modal-btn', 'margin-top:14px;', 'Закрыть музей');
         closeB.type = 'button';
-        closeB.onclick = () => { if (stageViewer) stageViewer.destroy(); bg.remove(); };
+        closeB.onclick = () => { if (stageViewer) stageViewer.destroy(); if (stageFx) stageFx.destroy(); bg.remove(); };
 
         box.append(topHdr, layout, closeB);
         bg.appendChild(box);

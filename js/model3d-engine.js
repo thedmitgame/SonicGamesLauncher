@@ -1,3 +1,4 @@
+/* _sgl3dVisGuard */
 /* === NATIVE WEBGL 3D ENGINE v3.1 (VERIFIED GLSL + POT TEXTURES) === */
 (function() {
     function toPotCanvas(imgSource) {
@@ -61,24 +62,51 @@
         return valid;
     }
 
-    function createBuiltinEmeraldMesh() {
-        const sides = 12, rTop = 0.54, rMid = 0.98, yTop = 0.48, yMid = 0.14, yBot = -0.78, out = new Array();
-        const tri = (a, b, c) => { out.push(a.at(0), a.at(1), a.at(2), b.at(0), b.at(1), b.at(2), c.at(0), c.at(1), c.at(2)); };
-        for (let i = 0; i < sides; i++) {
-            const a0 = (i / sides) * Math.PI * 2, a1 = ((i + 1) / sides) * Math.PI * 2;
-            const t0 = Array.of(Math.cos(a0)*rTop, yTop, Math.sin(a0)*rTop);
-            const t1 = Array.of(Math.cos(a1)*rTop, yTop, Math.sin(a1)*rTop);
-            const m0 = Array.of(Math.cos(a0)*rMid, yMid, Math.sin(a0)*rMid);
-            const m1 = Array.of(Math.cos(a1)*rMid, yMid, Math.sin(a1)*rMid);
-            tri(Array.of(0, yTop, 0), t1, t0); tri(t0, t1, m1); tri(t0, m1, m0); tri(m0, m1, Array.of(0, yBot, 0));
-        }
-        const pos = new Float32Array(out);
-        return Array.of({ pos, uv: new Float32Array((pos.length / 3) * 2), nrm: computeNormals(pos), color: Float32Array.of(0.15, 0.92, 0.48) });
+    function addOctaPedestalPart() {
+        const mkP = makeGeoBuilder();
+        const base = mkP(Float32Array.of(0.16, 0.20, 0.30));
+        base.addCylY(-0.96, 0.86, 0.76, 0.14, 8);
+        base.addCylY(-0.82, 0.70, 0.62, 0.12, 8);
+        const glow = mkP(Float32Array.of(1.0, 0.84, 0.18));
+        glow.addCylY(-0.75, 0.65, 0.65, 0.035, 24);
+        return Array.of(base.build(), glow.build());
     }
 
+    function buildCrystalVerts(sides, rTop, rMid, yTop, yMid, yBot, ox, oy, oz) {
+        const out = new Array();
+        const tri = (a, b, c) => { out.push(a.at(0),a.at(1),a.at(2), b.at(0),b.at(1),b.at(2), c.at(0),c.at(1),c.at(2)); };
+        for (let i = 0; i < sides; i++) {
+            const a0 = (i / sides) * Math.PI * 2, a1 = ((i + 1) / sides) * Math.PI * 2;
+            const t0 = Array.of(ox + Math.cos(a0)*rTop, oy + yTop, oz + Math.sin(a0)*rTop);
+            const t1 = Array.of(ox + Math.cos(a1)*rTop, oy + yTop, oz + Math.sin(a1)*rTop);
+            const m0 = Array.of(ox + Math.cos(a0)*rMid, oy + yMid, oz + Math.sin(a0)*rMid);
+            const m1 = Array.of(ox + Math.cos(a1)*rMid, oy + yMid, oz + Math.sin(a1)*rMid);
+            tri(Array.of(ox, oy + yTop, oz), t1, t0);
+            tri(t0, t1, m1); tri(t0, m1, m0);
+            tri(m0, m1, Array.of(ox, oy + yBot, oz));
+        }
+        return new Float32Array(out);
+    }
+
+    function createBuiltinEmeraldMesh(withOrbit) {
+        const pos = buildCrystalVerts(16, 0.48, 0.88, 0.46, 0.12, -0.74, 0, 0.08, 0);
+        const parts = Array.of({ pos, uv: new Float32Array((pos.length / 3) * 2), nrm: computeNormals(pos), color: Float32Array.of(0.12, 0.92, 0.48) });
+        if (withOrbit) {
+            const cols = Array.of(
+                Float32Array.of(0.95,0.25,0.25), Float32Array.of(0.22,0.55,1.0), Float32Array.of(1.0,0.84,0.12),
+                Float32Array.of(0.18,0.88,0.42), Float32Array.of(0.92,0.95,1.0), Float32Array.of(0.22,0.85,0.98), Float32Array.of(0.72,0.35,0.98)
+            );
+            cols.forEach((c, idx) => {
+                const a = (idx / 7) * Math.PI * 2;
+                const mp = buildCrystalVerts(8, 0.09, 0.16, 0.12, 0.02, -0.16, Math.cos(a)*1.08, 0.06 + Math.sin(a*2)*0.14, Math.sin(a)*1.08);
+                parts.push({ pos: mp, uv: new Float32Array((mp.length / 3) * 2), nrm: computeNormals(mp), color: c });
+            });
+        }
+        return normalizeParts(parts);
+    }
 
     function createBuiltinRingMesh() {
-        const R = 0.68, r = 0.20, segU = 28, segV = 16, out = new Array();
+        const R = 0.62, r = 0.17, segU = 36, segV = 18, out = new Array();
         const pt = (u, v) => {
             const cu = Math.cos(u), su = Math.sin(u), cv = Math.cos(v), sv = Math.sin(v);
             return Array.of((R + r * cv) * cu, (R + r * cv) * su, r * sv);
@@ -92,48 +120,51 @@
                 tri(p00, p10, p11); tri(p00, p11, p01);
             }
         }
+        const mkP = makeGeoBuilder();
+        const wings = mkP(Float32Array.of(0.22, 0.78, 1.0));
+        Array.of(-1, 1).forEach(s => {
+            wings.addBox(s * 0.92, 0.12, 0, 0.24, 0.08, 0.05);
+            wings.addBox(s * 1.02, -0.04, 0, 0.18, 0.07, 0.04);
+        });
         const pos = new Float32Array(out);
-        return Array.of({ pos, uv: new Float32Array((pos.length / 3) * 2), nrm: computeNormals(pos), color: Float32Array.of(1.0, 0.82, 0.12) });
+        const ringP = { pos, uv: new Float32Array((pos.length / 3) * 2), nrm: computeNormals(pos), color: Float32Array.of(1.0, 0.82, 0.12) };
+        return normalizeParts(Array.of(ringP, wings.build()));
     }
 
     function createBuiltinMonitorMesh() {
-        const makeBoxPart = (boxes, col) => {
-            const out = new Array();
-            boxes.forEach(b => {
-                const cx = b.at(0), cy = b.at(1), cz = b.at(2), sx = b.at(3), sy = b.at(4), sz = b.at(5);
-                const x0 = cx-sx, x1 = cx+sx, y0 = cy-sy, y1 = cy+sy, z0 = cz-sz, z1 = cz+sz;
-                const faces = Array.of(
-                    Array.of(x0,y0,z1, x1,y0,z1, x1,y1,z1, x0,y1,z1),
-                    Array.of(x1,y0,z0, x0,y0,z0, x0,y1,z0, x1,y1,z0),
-                    Array.of(x0,y1,z1, x1,y1,z1, x1,y1,z0, x0,y1,z0),
-                    Array.of(x0,y0,z0, x1,y0,z0, x1,y0,z1, x0,y0,z1),
-                    Array.of(x1,y0,z1, x1,y0,z0, x1,y1,z0, x1,y1,z1),
-                    Array.of(x0,y0,z0, x0,y0,z1, x0,y1,z1, x0,y1,z0)
-                );
-                faces.forEach(f => {
-                    out.push(f.at(0),f.at(1),f.at(2), f.at(3),f.at(4),f.at(5), f.at(6),f.at(7),f.at(8));
-                    out.push(f.at(0),f.at(1),f.at(2), f.at(6),f.at(7),f.at(8), f.at(9),f.at(10),f.at(11));
-                });
-            });
-            const pos = new Float32Array(out);
-            return { pos, uv: new Float32Array((pos.length / 3) * 2), nrm: computeNormals(pos), color: col };
-        };
-        const bodyPart = makeBoxPart(Array.of(
-            Array.of(0, 0.12, 0, 0.56, 0.48, 0.46),
-            Array.of(0, 0.62, 0.04, 0.58, 0.05, 0.48),
-            Array.of(0, -0.44, 0, 0.24, 0.10, 0.24),
-            Array.of(0, -0.58, 0, 0.48, 0.07, 0.42)
-        ), Float32Array.of(0.24, 0.29, 0.38));
-        const screenPart = makeBoxPart(Array.of(
-            Array.of(0, 0.13, 0.47, 0.42, 0.34, 0.03)
-        ), Float32Array.of(0.06, 0.16, 0.36));
-        const ringEmblem = makeBoxPart(Array.of(
-            Array.of(0, 0.27, 0.50, 0.16, 0.035, 0.02),
-            Array.of(0, -0.01, 0.50, 0.16, 0.035, 0.02),
-            Array.of(-0.16, 0.13, 0.50, 0.035, 0.16, 0.02),
-            Array.of(0.16, 0.13, 0.50, 0.035, 0.16, 0.02)
-        ), Float32Array.of(1.0, 0.84, 0.12));
-        return normalizeParts(Array.of(bodyPart, screenPart, ringEmblem));
+        const mkP = makeGeoBuilder();
+        const body = mkP(Float32Array.of(0.24, 0.30, 0.40));
+        // Основной корпус со скошенными фасками (bevel)
+        body.addBox(0, 0.12, -0.02, 0.56, 0.46, 0.44);
+        body.addBox(0, 0.12, -0.02, 0.60, 0.40, 0.38);
+        body.addBox(0, 0.12, -0.02, 0.50, 0.50, 0.38);
+        // Козырёк сверху и рамка вокруг утопленного экрана
+        body.addBox(0, 0.60, 0.14, 0.58, 0.055, 0.34);
+        body.addBox(-0.50, 0.12, 0.42, 0.08, 0.44, 0.07);
+        body.addBox(0.50, 0.12, 0.42, 0.08, 0.44, 0.07);
+        body.addBox(0, -0.32, 0.42, 0.56, 0.07, 0.07);
+        // Выемка и основание снизу
+        body.addBox(0, -0.44, 0, 0.28, 0.09, 0.28);
+        body.addBox(0, -0.56, 0, 0.52, 0.06, 0.44);
+
+        const vents = mkP(Float32Array.of(0.11, 0.14, 0.20));
+        for (let k = -2; k <= 2; k++) {
+            vents.addBox(-0.61, 0.12 + k * 0.11, -0.02, 0.02, 0.03, 0.28);
+            vents.addBox(0.61, 0.12 + k * 0.11, -0.02, 0.02, 0.03, 0.28);
+        }
+        const rivets = mkP(Float32Array.of(0.76, 0.82, 0.90));
+        Array.of(-0.42, 0.42).forEach(rx => {
+            Array.of(-0.34, 0.34).forEach(rz => { rivets.addCylY(-0.63, 0.08, 0.07, 0.08, 16); });
+            rivets.addBox(rx, -0.62, 0.32, 0.07, 0.05, 0.07);
+            rivets.addBox(rx, -0.62, -0.32, 0.07, 0.05, 0.07);
+        });
+        const screen = mkP(Float32Array.of(0.06, 0.24, 0.52));
+        screen.addBox(0, 0.12, 0.38, 0.41, 0.35, 0.03);
+        const icon = mkP(Float32Array.of(1.0, 0.85, 0.15));
+        icon.addCylZ(0.415, 0.21, 0.025, 24);
+        const inner = mkP(Float32Array.of(0.06, 0.24, 0.52));
+        inner.addCylZ(0.422, 0.12, 0.02, 20);
+        return normalizeParts(Array.of(body.build(), vents.build(), rivets.build(), screen.build(), icon.build(), inner.build()));
     }
 
     function createBuiltinStarMesh() {
@@ -193,27 +224,75 @@
                     tri(Array.of(0,0,z0), Array.of(p1.at(0),p1.at(1),z0), Array.of(p0.at(0),p0.at(1),z0));
                 }
             };
+            const addLathe = (profile, segs) => {
+                for (let k = 0; k < profile.length - 1; k++) {
+                    const p0 = profile.at(k), p1 = profile.at(k + 1);
+                    const r0 = p0.at(0), y0 = p0.at(1), r1 = p1.at(0), y1 = p1.at(1);
+                    for (let i = 0; i < segs; i++) {
+                        const a0 = (i / segs) * Math.PI * 2, a1 = ((i + 1) / segs) * Math.PI * 2;
+                        const c0 = Math.cos(a0), s0 = Math.sin(a0), c1 = Math.cos(a1), s1 = Math.sin(a1);
+                        const v00 = Array.of(c0*r0, y0, s0*r0), v10 = Array.of(c1*r0, y0, s1*r0);
+                        const v11 = Array.of(c1*r1, y1, s1*r1), v01 = Array.of(c0*r1, y1, s0*r1);
+                        tri(v00, v10, v11); tri(v00, v11, v01);
+                    }
+                }
+            };
+            const addArcHandle = (side, cx, cy, rx, ry, rTube, segU, segV) => {
+                const pt = (u, v) => {
+                    const au = -Math.PI * 0.5 + u * Math.PI;
+                    const bx = cx + side * Math.cos(au) * rx, by = cy + Math.sin(au) * ry;
+                    const nx = side * Math.cos(au), ny = Math.sin(au);
+                    return Array.of(bx + nx * Math.cos(v) * rTube, by + ny * Math.cos(v) * rTube, Math.sin(v) * rTube);
+                };
+                for (let i = 0; i < segU; i++) {
+                    const u0 = i / segU, u1 = (i + 1) / segU;
+                    for (let j = 0; j < segV; j++) {
+                        const v0 = (j / segV) * Math.PI * 2, v1 = ((j + 1) / segV) * Math.PI * 2;
+                        tri(pt(u0, v0), pt(u1, v0), pt(u1, v1)); tri(pt(u0, v0), pt(u1, v1), pt(u0, v1));
+                    }
+                }
+            };
             const build = () => {
                 const pos = new Float32Array(out);
                 return { pos, uv: new Float32Array((pos.length / 3) * 2), nrm: computeNormals(pos), color: col };
             };
-            return { tri, addBox, addCylY, addCylZ, build };
+            return { tri, addBox, addCylY, addCylZ, addLathe, addArcHandle, build };
         };
         return makePart;
     }
 
     function createBuiltinGoalPlateMesh() {
         const mkP = makeGeoBuilder();
-        const metal = mkP(Float32Array.of(0.76, 0.80, 0.88));
-        metal.addCylY(-0.42, 0.06, 0.06, 0.72, 14);
-        metal.addCylY(-0.76, 0.30, 0.24, 0.08, 16);
+        const metal = mkP(Float32Array.of(0.78, 0.82, 0.90));
+        // Круглое ступенчатое основание и рифлёный столб
+        metal.addCylY(-0.78, 0.36, 0.30, 0.09, 28);
+        metal.addCylY(-0.70, 0.22, 0.16, 0.08, 28);
+        metal.addCylY(-0.34, 0.065, 0.065, 0.68, 24);
+        for (let r = 0; r < 5; r++) {
+            metal.addCylY(-0.56 + r * 0.12, 0.082, 0.082, 0.03, 24);
+        }
+        // Объёмный золотой обод таблички на 32 сегмента
         const rim = mkP(Float32Array.of(1.0, 0.82, 0.14));
-        rim.addCylZ(0, 0.44, 0.10, 22);
-        const frontBlue = mkP(Float32Array.of(0.08, 0.45, 0.96));
-        frontBlue.addCylZ(0.045, 0.36, 0.03, 22);
+        rim.addCylZ(0, 0.50, 0.11, 32);
+        const frontBlue = mkP(Float32Array.of(0.08, 0.44, 0.96));
+        frontBlue.addCylZ(0.052, 0.41, 0.03, 32);
         const backRed = mkP(Float32Array.of(0.92, 0.18, 0.22));
-        backRed.addCylZ(-0.045, 0.36, 0.03, 22);
-        return normalizeParts(Array.of(metal.build(), rim.build(), frontBlue.build(), backRed.build()));
+        backRed.addCylZ(-0.052, 0.41, 0.03, 32);
+
+        // Выпуклый рельеф звезды на обеих сторонах таблички
+        const relief = mkP(Float32Array.of(1.0, 0.92, 0.32));
+        for (let i = 0; i < 10; i++) {
+            const a0 = (i / 10) * Math.PI * 2 - Math.PI * 0.5;
+            const a1 = ((i + 1) / 10) * Math.PI * 2 - Math.PI * 0.5;
+            const d0 = (i % 2 === 0) ? 0.28 : 0.12, d1 = ((i + 1) % 2 === 0) ? 0.28 : 0.12;
+            const f0 = Array.of(Math.cos(a0)*d0, -Math.sin(a0)*d0, 0.068);
+            const f1 = Array.of(Math.cos(a1)*d1, -Math.sin(a1)*d1, 0.068);
+            relief.tri(Array.of(0, 0, 0.115), f0, f1);
+            const b0 = Array.of(Math.cos(a0)*d0, -Math.sin(a0)*d0, -0.068);
+            const b1 = Array.of(Math.cos(a1)*d1, -Math.sin(a1)*d1, -0.068);
+            relief.tri(Array.of(0, 0, -0.115), b1, b0);
+        }
+        return normalizeParts(Array.of(metal.build(), rim.build(), frontBlue.build(), backRed.build(), relief.build()));
     }
 
     function createBuiltinRedRingMesh() {
@@ -245,13 +324,13 @@
     function createBuiltinCapsuleMesh() {
         const mkP = makeGeoBuilder();
         const base = mkP(Float32Array.of(0.18, 0.44, 0.92));
-        base.addCylY(-0.34, 0.56, 0.52, 0.34, 16);
+        base.addCylY(-0.34, 0.56, 0.52, 0.34, 28);
         const stripe = mkP(Float32Array.of(1.0, 0.82, 0.12));
-        stripe.addCylY(-0.14, 0.54, 0.54, 0.08, 16);
+        stripe.addCylY(-0.14, 0.54, 0.54, 0.08, 28);
         const dome = mkP(Float32Array.of(0.45, 0.88, 1.0));
-        dome.addCylY(0.14, 0.48, 0.32, 0.46, 16);
+        dome.addCylY(0.14, 0.48, 0.32, 0.46, 28);
         const btn = mkP(Float32Array.of(0.94, 0.18, 0.22));
-        btn.addCylY(0.44, 0.24, 0.20, 0.14, 14);
+        btn.addCylY(0.44, 0.24, 0.20, 0.14, 24);
         return normalizeParts(Array.of(base.build(), stripe.build(), dome.build(), btn.build()));
     }
 
@@ -270,22 +349,39 @@
 
     function createBuiltinCupMesh() {
         const mkP = makeGeoBuilder();
-        const gold = mkP(Float32Array.of(1.0, 0.82, 0.16));
-        gold.addCylY(0.32, 0.24, 0.50, 0.54, 18);
-        gold.addCylY(-0.08, 0.11, 0.14, 0.28, 14);
-        gold.addCylY(-0.28, 0.34, 0.22, 0.12, 16);
-        gold.addBox(-0.46, 0.34, 0, 0.08, 0.18, 0.04);
-        gold.addBox(0.46, 0.34, 0, 0.08, 0.18, 0.04);
-        const plinth = mkP(Float32Array.of(0.14, 0.18, 0.28));
-        plinth.addBox(0, -0.46, 0, 0.40, 0.12, 0.40);
-        const gem = mkP(Float32Array.of(0.15, 0.94, 0.52));
-        gem.addBox(0, 0.32, 0.44, 0.10, 0.10, 0.05);
-        const base = makeGeoBuilder()(Float32Array.of(0.22, 0.26, 0.36));
-base.addCylY(-0.82, 0.66, 0.56, 0.14, 24);
-base.addCylY(-0.68, 0.48, 0.42, 0.10, 24);
-return normalizeParts(Array.of(gold.build(), plinth.build(), gem.build(), base.build()));
-    }
+        const gold = mkP(Float32Array.of(1.0, 0.83, 0.16));
+        // Плавная ваза вращения (lathe на 32 сегмента)
+        const cupProfile = Array.of(
+            Array.of(0.42, -0.62), Array.of(0.40, -0.54), Array.of(0.32, -0.50),
+            Array.of(0.28, -0.44), Array.of(0.14, -0.34), Array.of(0.10, -0.18),
+            Array.of(0.15, -0.06), Array.of(0.11, 0.02),  Array.of(0.26, 0.12),
+            Array.of(0.42, 0.28),  Array.of(0.50, 0.46),  Array.of(0.54, 0.58),
+            Array.of(0.48, 0.60),  Array.of(0.44, 0.46),  Array.of(0.28, 0.20),
+            Array.of(0.02, 0.12)
+        );
+        gold.addLathe(cupProfile, 32);
+        // Две изогнутые дугообразные ручки по бокам
+        gold.addArcHandle(-1, -0.42, 0.36, 0.22, 0.20, 0.042, 16, 10);
+        gold.addArcHandle(1, 0.42, 0.36, 0.22, 0.20, 0.042, 16, 10);
 
+        const base = mkP(Float32Array.of(0.16, 0.20, 0.30));
+        base.addCylY(-0.72, 0.56, 0.48, 0.14, 32);
+        base.addCylY(-0.62, 0.44, 0.42, 0.06, 32);
+
+        // Парящая объёмная звезда прямо над чашей
+        const star = mkP(Float32Array.of(1.0, 0.94, 0.38));
+        const sy = 0.86, rOut = 0.24, rIn = 0.105, zD = 0.08;
+        for (let i = 0; i < 10; i++) {
+            const a0 = (i / 10) * Math.PI * 2 - Math.PI * 0.5;
+            const a1 = ((i + 1) / 10) * Math.PI * 2 - Math.PI * 0.5;
+            const d0 = (i % 2 === 0) ? rOut : rIn, d1 = ((i + 1) % 2 === 0) ? rOut : rIn;
+            const p0 = Array.of(Math.cos(a0)*d0, sy - Math.sin(a0)*d0, 0);
+            const p1 = Array.of(Math.cos(a1)*d1, sy - Math.sin(a1)*d1, 0);
+            star.tri(Array.of(0, sy, zD), p0, p1);
+            star.tri(Array.of(0, sy, -zD), p1, p0);
+        }
+        return normalizeParts(Array.of(gold.build(), base.build(), star.build()));
+    }
 
     function createBuiltinPrismMesh() {
         const sides = 10, rMid = 0.76, yTop = 0.94, yBot = -0.94, out = new Array();
@@ -303,13 +399,17 @@ return normalizeParts(Array.of(gold.build(), plinth.build(), gem.build(), base.b
 
     function createBuiltinMedallionMesh() {
         const mkP = makeGeoBuilder();
-        const disc = mkP(Float32Array.of(0.88, 0.92, 0.98));
-        disc.addCylZ(0, 0.76, 0.14, 24);
-        const rim = mkP(Float32Array.of(1.0, 0.82, 0.15));
-        rim.addCylZ(0, 0.82, 0.08, 24);
-        const core = mkP(Float32Array.of(0.15, 0.65, 1.0));
-        core.addBox(0, 0, 0, 0.36, 0.36, 0.18);
-        return normalizeParts(Array.of(disc.build(), rim.build(), core.build()));
+        const gear = mkP(Float32Array.of(0.86, 0.90, 0.96));
+        gear.addCylZ(0, 0.66, 0.14, 24);
+        for (let i = 0; i < 12; i++) {
+            const a = (i / 12) * Math.PI * 2;
+            gear.addBox(Math.cos(a) * 0.72, Math.sin(a) * 0.72, 0, 0.11, 0.11, 0.10);
+        }
+        const rim = mkP(Float32Array.of(1.0, 0.82, 0.14));
+        rim.addCylZ(0, 0.50, 0.18, 20);
+        const core = mkP(Float32Array.of(0.14, 0.68, 1.0));
+        core.addCylZ(0, 0.28, 0.22, 16);
+        return normalizeParts(Array.of(gear.build(), rim.build(), core.build()));
     }
 
     function parseSTL(buf) {
@@ -600,6 +700,7 @@ return normalizeParts(Array.of(gold.build(), plinth.build(), gem.build(), base.b
         }
 
         function upload(parts) {
+            if (state.pedestal) parts = Array.of(...parts, ...addOctaPedestalPart());
             gpuParts = parts.map(p => {
                 const mkB = (arr) => { const b = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, b); gl.bufferData(gl.ARRAY_BUFFER, arr, gl.STATIC_DRAW); return b; };
                 return { bPos: mkB(p.pos), bNrm: mkB(p.nrm), bUv: mkB(p.uv), count: p.pos.length / 3, color: p.color || Float32Array.of(0.88, 0.91, 0.96), tex: p.img ? makeGlTex(p.img) : null };
@@ -608,7 +709,8 @@ return normalizeParts(Array.of(gold.build(), plinth.build(), gem.build(), base.b
 
         async function loadSrc(url) {
             try {
-                if (!url || url === 'builtin_emerald' || url === 'builtin_super_emerald') { upload(createBuiltinEmeraldMesh()); return; }
+                if (url === 'builtin_super_emerald') { upload(createBuiltinEmeraldMesh(true)); return; }
+                if (!url || url === 'builtin_emerald') { upload(createBuiltinEmeraldMesh(false)); return; }
                 if (url === 'builtin_ring') { upload(createBuiltinRingMesh()); return; }
                 if (url === 'builtin_monitor') { upload(createBuiltinMonitorMesh()); return; }
                 if (url === 'builtin_starpost') { upload(createBuiltinStarMesh()); return; }
@@ -648,20 +750,35 @@ return normalizeParts(Array.of(gold.build(), plinth.build(), gem.build(), base.b
             cvs.onwheel = (e) => { e.preventDefault(); state.zoom = Math.max(0.5, Math.min(2.4, Number(state.zoom || 1) + (e.deltaY < 0 ? 0.1 : -0.1))); };
         }
 
+        let lastDraw = 0;
         function frame(now) {
             if (dead || !cvs.isConnected) return;
+            if (document.hidden || cvs.offsetParent === null) { setTimeout(() => { if (!dead && cvs.isConnected) requestAnimationFrame(frame); }, 450); return; }
             requestAnimationFrame(frame);
+            const d3Int = (typeof window.SGL_GET_FPS === 'function') ? window.SGL_GET_FPS('3d') : 16.6;
+            if (d3Int > 20 && now - lastDraw < d3Int - 3) return;
+            lastDraw = now;
             if (document.hidden) return;
-            const dpr = Math.min(window.devicePixelRatio || 1, 2);
+            const dpr = Math.min(window.devicePixelRatio || 1, 1.25);
             const w = Math.max(40, Math.floor((hostEl.clientWidth || 220) * dpr));
             const h = Math.max(40, Math.floor((hostEl.clientHeight || 220) * dpr));
             if (cvs.width !== w || cvs.height !== h) { cvs.width = w; cvs.height = h; }
-            if (!dragging && Number(state.speed) > 0) rotY += 0.015 * Number(state.speed);
+            if (!dragging && Number(state.speed) > 0) {
+                let step = 0.015 * Number(state.speed);
+                if (state.url === 'builtin_goalplate') {
+                    const cyc = ((now - startT) % 5200);
+                    if (cyc < 680) {
+                        step = 0.28;
+                        if (cyc < 55 && typeof state.onSpinBurst === 'function') state.onSpinBurst();
+                    }
+                }
+                rotY += step;
+            }
 
             gl.viewport(0, 0, w, h); gl.clearColor(0, 0, 0, 0);
             gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT); gl.enable(gl.DEPTH_TEST); gl.useProgram(prog);
 
-            const f = 1.0 / Math.tan((42 * Math.PI) / 360), nf = 1 / (0.1 - 30), dist = 2.85 / Math.max(0.45, Number(state.zoom || 1));
+            const f = 1.0 / Math.tan((42 * Math.PI) / 360), nf = 1 / (0.1 - 30), dist = 4.45 / Math.max(0.35, Number(state.zoom || 1));
             const cx = Math.cos(rotX), sx = Math.sin(rotX), cy = Math.cos(rotY), sy = Math.sin(rotY);
             gl.uniformMatrix4fv(uProj, false, Float32Array.of(f/(w/h),0,0,0, 0,f,0,0, 0,0,30.1*nf,-1, 0,0,6*nf,0));
             gl.uniformMatrix4fv(uView, false, Float32Array.of(cy,sx*sy,-cx*sy,0, 0,cx,sx,0, sy,-sx*cy,cx*cy,0, 0,0,-dist,1));

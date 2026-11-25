@@ -442,49 +442,64 @@ function startShaderLoop() {
         hue: Math.random() > 0.35 ? 'rgba(56, 189, 248, 0.22)' : 'rgba(244, 63, 94, 0.24)'
     }));
 
-    let tick = 0;
+    let tick = 0, lastShT = 0;
 
-    function renderFrame() {
+    function renderFrame(now) {
+        const bgInt = (typeof window.SGL_GET_FPS === 'function') ? (window.SGL_GET_FPS('bg') - 1) : 32;
+        if (now && now - lastShT < bgInt) { shaderAnimId = requestAnimationFrame(renderFrame); return; }
+        lastShT = now || 0;
         const mode = currentDesign?.shaderType || 'none';
         if (document.hidden || mode === 'none' || currentDesign?.liteMode) {
             if (mode === 'none' || currentDesign?.liteMode) ctx.clearRect(0, 0, canvas.width, canvas.height);
             setTimeout(() => { shaderAnimId = requestAnimationFrame(renderFrame); }, 250);
             return;
         }
-        tick += 1;
+        const fxSpd = (typeof window.SGL_GET_FX_SPEED === 'function') ? window.SGL_GET_FX_SPEED() : 1;
+        tick += fxSpd;
         const w = canvas.width;
         const h = canvas.height;
         ctx.clearRect(0, 0, w, h);
 
         if (mode === 'synthwave') {
-            const horizon = h * 0.56;
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.16)';
-            ctx.lineWidth = 1;
-            const vLines = 18;
-            for (let i = -vLines; i <= vLines; i++) {
-                const topX = w * 0.5 + i * 28;
-                const botX = w * 0.5 + i * 130;
+            const horizon = h * 0.54;
+            const gridH = h - horizon;
+            const grad = ctx.createLinearGradient(0, horizon, 0, h);
+            grad.addColorStop(0, 'rgba(255, 255, 255, 0)');
+            grad.addColorStop(0.22, 'rgba(255, 255, 255, 0.16)');
+            grad.addColorStop(1, 'rgba(255, 255, 255, 0.24)');
+            ctx.strokeStyle = grad;
+            ctx.lineWidth = 1.2;
+
+            ctx.beginPath();
+            ctx.moveTo(0, horizon);
+            ctx.lineTo(w, horizon);
+            ctx.stroke();
+
+            const vCols = Math.ceil(w / 90) + 8;
+            for (let i = -vCols; i <= vCols; i++) {
+                const topX = w * 0.5 + i * 32;
+                const botX = w * 0.5 + i * 175;
                 ctx.beginPath();
                 ctx.moveTo(topX, horizon);
                 ctx.lineTo(botX, h);
                 ctx.stroke();
             }
-            const offset = (tick * 1.4) % 40;
-            for (let y = horizon; y < h; y += 22) {
-                const progress = (y - horizon) / (h - horizon);
-                const drawY = y + offset * progress;
-                if (drawY <= h) {
-                    ctx.beginPath();
-                    ctx.moveTo(0, drawY);
-                    ctx.lineTo(w, drawY);
-                    ctx.stroke();
-                }
+
+            const rows = 14;
+            const phase = ((tick * 0.016) % 1 + 1) % 1;
+            for (let r = 0; r < rows; r++) {
+                const t = (r + phase) / rows;
+                const y = horizon + Math.pow(t, 2.35) * gridH;
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(w, y);
+                ctx.stroke();
             }
         } else if (mode === 'speedlines') {
             ctx.strokeStyle = 'rgba(255, 255, 255, 0.18)';
             ctx.lineWidth = 2;
             speedLines.forEach(line => {
-                line.x -= line.vx;
+                line.x -= line.vx * fxSpd;
                 if (line.x + line.len < 0) {
                     line.x = w + 50;
                     line.y = Math.random() * h;
@@ -495,22 +510,23 @@ function startShaderLoop() {
                 ctx.stroke();
             });
         } else if (mode === 'checker') {
-            const size = 48;
-            const shift = (tick * 0.6) % (size * 2);
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
-            for (let x = -size * 2; x < w + size * 2; x += size) {
-                for (let y = -size * 2; y < h + size * 2; y += size) {
-                    const col = Math.floor(x / size);
-                    const row = Math.floor(y / size);
-                    if ((col + row) % 2 === 0) {
-                        ctx.fillRect(x + shift, y + shift * 0.5, size, size);
+            const size = 56;
+            const period = size * 2;
+            const shift = ((tick * 0.75) % period + period) % period;
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.055)';
+            const cols = Math.ceil(w / size) + 4;
+            const rows = Math.ceil(h / size) + 4;
+            for (let col = -2; col < cols; col++) {
+                for (let row = -2; row < rows; row++) {
+                    if (((col + row) % 2 + 2) % 2 === 0) {
+                        ctx.fillRect(col * size + shift - period, row * size + shift - period, size, size);
                     }
                 }
             }
         } else if (mode === 'sparks') {
             sparks.forEach(sp => {
-                sp.y -= sp.vy;
-                sp.x += sp.vx;
+                sp.y -= sp.vy * fxSpd;
+                sp.x += sp.vx * fxSpd;
                 if (sp.y < -10) {
                     sp.y = h + 10;
                     sp.x = Math.random() * w;
@@ -524,7 +540,7 @@ function startShaderLoop() {
             const cx = w * 0.5;
             const cy = h * 0.5;
             warpStars.forEach(st => {
-                st.z -= 8.5;
+                st.z -= 8.5 * fxSpd;
                 if (st.z <= 15) {
                     st.x = (Math.random() - 0.5) * 1600;
                     st.y = (Math.random() - 0.5) * 1000;
@@ -544,9 +560,9 @@ function startShaderLoop() {
             });
         } else if (mode === 'mania_geo') {
             maniaShapes.forEach(sh => {
-                sh.x += sh.vx;
-                sh.y += sh.vy;
-                sh.rot += sh.vRot;
+                sh.x += sh.vx * fxSpd;
+                sh.y += sh.vy * fxSpd;
+                sh.rot += sh.vRot * fxSpd;
                 if (sh.x > w + 60) sh.x = -50;
                 if (sh.y < -60) sh.y = h + 50;
                 ctx.save();
@@ -574,7 +590,7 @@ function startShaderLoop() {
             });
         } else if (mode === 'cyber_glitch') {
             cyberCols.forEach(c => {
-                c.y -= c.vy;
+                c.y -= c.vy * fxSpd;
                 if (c.y + c.h < 0) {
                     c.y = h + 40;
                     c.x = Math.random() * w;
@@ -889,7 +905,7 @@ function renderFloatingObjects() {
         img.style.left = `${(Math.random() * 30 - 15).toFixed(1)}vw`;
         img.style.top = `${(Math.random() * 30 - 15).toFixed(1)}vh`;
         const duration = Math.max(4, baseDuration + (Math.random() * 8 - 4)).toFixed(1);
-        img.style.animationDuration = `${duration}s`;
+        img.style.animationDuration = `calc(${duration}s / var(--sgl-fx-speed, 1))`;
         img.style.animationDelay = `${-(Math.random() * duration).toFixed(1)}s`;
         container.appendChild(img);
     }
