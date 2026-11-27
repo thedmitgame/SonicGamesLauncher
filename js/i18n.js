@@ -160,3 +160,150 @@
         if (typeof applyButtonsAndHud === 'function') applyButtonsAndHud();
     });
 })();
+
+
+/* === REALTIME I18N ENGINE ENHANCER (v1.4.2) === */
+(function() {
+    if (window._sglI18nV142) return;
+    window._sglI18nV142 = true;
+
+    const origTextMap = new WeakMap();
+    const origAttrMap = new WeakMap();
+    const ATTRS = Array.of('placeholder', 'title', 'aria-label', 'alt');
+    let dictCache = { exact: {}, partialKeys: new Array(), partial: {} };
+    let obsTimer = 0;
+
+    function getLang() {
+        const sel = document.getElementById('m6-lang-select');
+        if (sel && sel.value) return sel.value.toLowerCase();
+        try { return (localStorage.getItem('sgl_lang') || 'ru').toLowerCase(); } catch (_) { return 'ru'; }
+    }
+
+    async function loadEnDict() {
+        try {
+            const res = await fetch('/locales/en.json?v=1.4.3');
+            const data = await res.json();
+            const partial = data.partial || {};
+            const pKeys = Object.keys(partial).sort((a, b) => b.length - a.length);
+            dictCache = { exact: data.exact || {}, partialKeys: pKeys, partial };
+        } catch (_) {}
+    }
+
+    function translateText(raw) {
+        if (!raw || !/[А-Яа-яЁё]/.test(raw)) return raw;
+        const trimmed = raw.trim();
+        if (!trimmed) return raw;
+        if (dictCache.exact[trimmed] !== undefined) {
+            return raw.replace(trimmed, dictCache.exact[trimmed]);
+        }
+        let out = raw;
+        const keys = dictCache.partialKeys;
+        for (let i = 0; i < keys.length; i++) {
+            const k = keys.at(i);
+            if (out.includes(k)) out = out.split(k).join(dictCache.partial[k]);
+        }
+        return out;
+    }
+
+    function processElementAttrs(el, isEn) {
+        if (!el || el.nodeType !== 1) return;
+        let saved = origAttrMap.get(el);
+        if (!saved) { saved = {}; origAttrMap.set(el, saved); }
+
+        ATTRS.forEach(attr => {
+            const cur = el.getAttribute(attr);
+            if (cur === null) return;
+            if (isEn) {
+                if (saved[attr] === undefined && /[А-Яа-яЁё]/.test(cur)) saved[attr] = cur;
+                const base = saved[attr] !== undefined ? saved[attr] : cur;
+                const tr = translateText(base);
+                if (tr !== cur) el.setAttribute(attr, tr);
+            } else if (saved[attr] !== undefined && cur !== saved[attr]) {
+                el.setAttribute(attr, saved[attr]);
+            }
+        });
+
+        if (el.tagName === 'INPUT' && (el.type === 'button' || el.type === 'submit' || (el.type === 'text' && el.closest('#buttons-custom-list')))) {
+            const curV = el.value || '';
+            if (isEn) {
+                if (saved._val === undefined && /[А-Яа-яЁё]/.test(curV)) saved._val = curV;
+                const trV = translateText(saved._val !== undefined ? saved._val : curV);
+                if (trV !== curV) el.value = trV;
+            } else if (saved._val !== undefined && curV !== saved._val) {
+                el.value = saved._val;
+            }
+        }
+    }
+
+    function translateSubtree(root) {
+        if (!root) return;
+        const isEn = getLang() === 'en';
+        const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT);
+        let node = root;
+        while (node) {
+            if (node.nodeType === 3) {
+                const pTag = node.parentElement ? node.parentElement.tagName : '';
+                if (pTag !== 'SCRIPT' && pTag !== 'STYLE') {
+                    const cur = node.nodeValue || '';
+                    if (isEn) {
+                        if (!origTextMap.has(node) && /[А-Яа-яЁё]/.test(cur)) origTextMap.set(node, cur);
+                        const base = origTextMap.has(node) ? origTextMap.get(node) : cur;
+                        const tr = translateText(base);
+                        if (tr !== cur) node.nodeValue = tr;
+                    } else if (origTextMap.has(node)) {
+                        const orig = origTextMap.get(node);
+                        if (cur !== orig) node.nodeValue = orig;
+                    }
+                }
+            } else if (node.nodeType === 1) {
+                processElementAttrs(node, isEn);
+            }
+            node = walker.nextNode();
+        }
+    }
+
+    window.sglTranslateString = function(s) {
+        return getLang() === 'en' ? translateText(String(s || '')) : String(s || '');
+    };
+    window.sglApplyRealtimeI18n = function() {
+        translateSubtree(document.body);
+    };
+
+    function hookGlobals() {
+        if (typeof window.showToast === 'function' && !window._i18nToastHooked) {
+            window._i18nToastHooked = true;
+            const origToast = window.showToast;
+            window.showToast = function(msg, isErr) {
+                return origToast.call(this, window.sglTranslateString(msg), isErr);
+            };
+        }
+        if (typeof window.askDialog === 'function' && !window._i18nAskHooked) {
+            window._i18nAskHooked = true;
+            const origAsk = window.askDialog;
+            window.askDialog = function(msg, defVal) {
+                return origAsk.call(this, window.sglTranslateString(msg), defVal);
+            };
+        }
+        const langSel = document.getElementById('m6-lang-select');
+        if (langSel && !langSel.dataset.i18nV142) {
+            langSel.dataset.i18nV142 = '1';
+            langSel.addEventListener('change', () => { setTimeout(() => translateSubtree(document.body), 40); });
+        }
+    }
+
+    async function bootRealtimeI18n() {
+        await loadEnDict();
+        hookGlobals();
+        if (getLang() === 'en') translateSubtree(document.body);
+        const obs = new MutationObserver(() => {
+            if (getLang() !== 'en') return;
+            if (obsTimer) return;
+            obsTimer = setTimeout(() => { obsTimer = 0; translateSubtree(document.body); }, 110);
+        });
+        obs.observe(document.body, { childList: true, subtree: true });
+        setTimeout(hookGlobals, 600);
+    }
+
+    if (document.readyState === 'loading') window.addEventListener('DOMContentLoaded', bootRealtimeI18n);
+    else bootRealtimeI18n();
+})();

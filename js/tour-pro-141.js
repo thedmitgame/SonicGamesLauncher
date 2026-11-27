@@ -1,4 +1,4 @@
-/* === PRO ONBOARDING TOUR v1.4.1 (SPOTLIGHT + ANIMATIONS) === */
+/* === PRO ONBOARDING TOUR v1.4.2 (SPOTLIGHT + ANIMATIONS) === */
 (function() {
     if (window._sglProTourLoaded) return;
     window._sglProTourLoaded = true;
@@ -228,11 +228,32 @@
 
     function bindHelpBtn() {
         injectTourCss();
-        const hb = document.getElementById('sgl-help-btn');
-        if (hb && !hb.dataset.ptBound) {
-            hb.dataset.ptBound = '1';
-            hb.addEventListener('click', (e) => { e.preventDefault(); e.stopImmediatePropagation(); window.startSglProTour(); }, true);
-        }
+        if (window._sglAboutTourObs) return;
+        window._sglAboutTourObs = new MutationObserver(() => {
+            const ab = document.getElementById('sgl-about-modal');
+            if (!ab || ab.dataset.ptHooked) return;
+            ab.dataset.ptHooked = '1';
+            const btns = Array.from(ab.querySelectorAll('button'));
+            let found = false;
+            btns.forEach(b => {
+                const t = (b.textContent || '').toLowerCase();
+                if (t.includes('тур') || t.includes('гид') || t.includes('обуч') || t.includes('tour') || t.includes('guide') || t.includes('tutorial') || t.includes('туториал')) {
+                    found = true;
+                    b.addEventListener('click', (e) => {
+                        e.preventDefault(); e.stopImmediatePropagation();
+                        ab.remove(); window.startSglProTour();
+                    }, true);
+                }
+            });
+            if (!found) {
+                const closeB = ab.querySelector('.close-modal-btn');
+                const tourB = mk('button', 'btn-small btn-accent', 'width:100%;margin-top:10px;padding:9px 12px;font-weight:700;', 'Пройти обучение (Гид по лаунчеру)');
+                tourB.type = 'button';
+                tourB.onclick = () => { ab.remove(); window.startSglProTour(); };
+                if (closeB && closeB.parentElement) closeB.parentElement.insertBefore(tourB, closeB);
+            }
+        });
+        window._sglAboutTourObs.observe(document.body, { childList: true, subtree: true });
     }
 
     const _bootTour = () => {

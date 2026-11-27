@@ -8,7 +8,7 @@ import time
 import urllib.request
 from pathlib import Path
 
-LAUNCHER_VERSION = "1.4.1"
+LAUNCHER_VERSION = "1.4.2"
 DEFAULT_GH_REPO = "thedmitgame/SonicGamesLauncher"
 
 

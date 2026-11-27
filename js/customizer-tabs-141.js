@@ -1,4 +1,4 @@
-/* === STAGE 2 POLISH (v1.4.1): 4-TAB CUSTOMIZER REORGANIZATION (SAFE) === */
+/* === STAGE 2 POLISH (v1.4.2): 4-TAB CUSTOMIZER REORGANIZATION (SAFE) === */
 (function() {
     let activeTabKey = 'look';
     let wasModalOpen = false;
